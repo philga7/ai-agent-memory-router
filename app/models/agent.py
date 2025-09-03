@@ -113,6 +113,27 @@ class Agent(BaseModel, TimestampMixin, IDMixin):
         return v
 
 
+class AgentContext(BaseModel):
+    """Agent context model for storing conversation and session state."""
+    
+    agent_id: str = Field(..., description="Agent identifier")
+    context_type: str = Field(..., description="Context type (session, project, user)")
+    context_data: Dict[str, Any] = Field(default_factory=dict, description="Context data")
+    session_id: Optional[str] = Field(None, description="Session identifier")
+    user_id: Optional[str] = Field(None, description="User identifier")
+    project_id: Optional[str] = Field(None, description="Project identifier")
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Context creation timestamp")
+    updated_at: datetime = Field(default_factory=datetime.utcnow, description="Context last update timestamp")
+    expires_at: Optional[datetime] = Field(None, description="Context expiration timestamp")
+    
+    @validator('context_type')
+    def validate_context_type(cls, v):
+        valid_types = ['session', 'project', 'user', 'conversation', 'task']
+        if v not in valid_types:
+            raise ValueError(f'Context type must be one of: {", ".join(valid_types)}')
+        return v
+
+
 class AgentCreate(BaseModel):
     """Model for creating an AI agent."""
     
@@ -236,7 +257,7 @@ class AgentSearch(BaseModel):
     limit: int = Field(default=20, ge=1, le=100, description="Maximum results")
     offset: int = Field(default=0, ge=0, description="Result offset")
     sort_by: str = Field(default="name", description="Sort field")
-    sort_order: str = Field(default="asc", regex="^(asc|desc)$", description="Sort order")
+    sort_order: str = Field(default="asc", pattern="^(asc|desc)$", description="Sort order")
     
     @validator('agent_type')
     def validate_agent_type(cls, v):

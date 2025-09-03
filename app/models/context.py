@@ -182,7 +182,7 @@ class ContextSearch(BaseModel):
     limit: int = Field(default=20, ge=1, le=100, description="Maximum results")
     offset: int = Field(default=0, ge=0, description="Result offset")
     sort_by: str = Field(default="updated_at", description="Sort field")
-    sort_order: str = Field(default="desc", regex="^(asc|desc)$", description="Sort order")
+    sort_order: str = Field(default="desc", pattern="^(asc|desc)$", description="Sort order")
     
     @validator('context_type')
     def validate_context_type(cls, v):
@@ -354,3 +354,20 @@ class ContextBatchResult(BaseModel):
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
+
+
+class SimpleContext(BaseModel, TimestampMixin, IDMixin):
+    """Simple context model for storing basic conversation context data."""
+    
+    conversation_id: str = Field(..., description="Conversation identifier")
+    agent_id: str = Field(..., description="Agent identifier")
+    context_data: Dict[str, Any] = Field(..., description="Context data as JSON")
+    context_type: str = Field(default="conversation", description="Context type")
+    expires_at: Optional[datetime] = Field(None, description="When context expires")
+    
+    @validator('context_type')
+    def validate_context_type(cls, v):
+        valid_types = ['conversation', 'task', 'project', 'meeting', 'support', 'training']
+        if v not in valid_types:
+            raise ValueError(f'Context type must be one of: {", ".join(valid_types)}')
+        return v
