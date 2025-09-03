@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/philga7/ai-agent-memory-router/compare/v1.1.0...v1.2.0) (2025-09-03)
+
+
+### Features
+
+* **docker:** complete Docker infrastructure and SQLite storage layer ([#3](https://github.com/philga7/ai-agent-memory-router/issues/3)) ([88553ec](https://github.com/philga7/ai-agent-memory-router/commit/88553ec3c013cfd33fe234c72201e5ff06b7d30b))
+
 # [1.1.0](https://github.com/philga7/ai-agent-memory-router/compare/v1.0.0...v1.1.0) (2025-09-03)
 
 
