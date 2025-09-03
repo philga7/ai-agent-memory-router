@@ -1,0 +1,38 @@
+# Include production requirements
+-r requirements.txt
+
+# Development Tools
+black==23.11.0
+flake8==6.1.0
+mypy==1.7.1
+pre-commit==3.6.0
+isort==5.12.0
+
+# Testing and Quality
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+pytest-xdist==3.5.0
+coverage==7.3.2
+
+# Documentation
+mkdocs==1.5.3
+mkdocs-material==9.4.8
+mkdocstrings[python]==0.24.0
+
+# Code Quality
+bandit==1.7.5
+safety==2.3.5
+
+# Debugging
+ipdb==0.13.13
+ipython==8.17.2
+
+# Performance Profiling
+py-spy==0.3.14
+memory-profiler==0.61.0
+
+# API Testing
+pytest-asyncio==0.21.1
+pytest-httpx==0.25.0

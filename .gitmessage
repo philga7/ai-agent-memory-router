@@ -1,0 +1,32 @@
+# <type>(<scope>): <subject>
+#
+# <body>
+#
+# <footer>
+
+# Types:
+# feat:     A new feature
+# fix:      A bug fix
+# docs:     Documentation only changes
+# style:    Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc)
+# refactor: A code change that neither fixes a bug nor adds a feature
+# perf:     A code change that improves performance
+# test:     Adding missing tests or correcting existing tests
+# chore:    Changes to the build process or auxiliary tools and libraries such as documentation generation
+#
+# Scopes:
+# api:      API changes
+# core:     Core functionality changes
+# mcp:      MCP server changes
+# docker:   Docker configuration changes
+# ci:       CI/CD changes
+#
+# Examples:
+# feat(api): add memory routing endpoint
+# fix(core): resolve memory retrieval bug
+# docs: update API documentation
+# style: fix code formatting
+# refactor(mcp): simplify tool registration
+# perf(core): optimize memory search algorithm
+# test(api): add integration tests for memory endpoints
+# chore: update dependencies

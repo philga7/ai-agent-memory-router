@@ -1,0 +1,34 @@
+{
+  "name": "ai-agent-memory-router",
+  "version": "0.0.0-development",
+  "description": "AI Agent Memory Router with Cipher/Weaviate integration for universal memory access",
+  "main": "app/main.py",
+  "scripts": {
+    "release": "semantic-release",
+    "release:dry-run": "semantic-release --dry-run",
+    "version:check": "semantic-release --dry-run --debug"
+  },
+  "devDependencies": {
+    "@semantic-release/changelog": "^6.0.0",
+    "@semantic-release/git": "^10.0.0",
+    "@semantic-release/github": "^8.0.0",
+    "@semantic-release/npm": "^9.0.0",
+    "semantic-release": "^21.0.0"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "memory",
+    "router",
+    "cipher",
+    "weaviate",
+    "mcp",
+    "semantic-versioning"
+  ],
+  "author": "AI Agent Memory Router Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/ai-agent-memory-router.git"
+  }
+}
