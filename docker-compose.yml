@@ -1,34 +1,12 @@
-version: '3.8'
-
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15-alpine
-    container_name: ai_agent_memory_postgres
-    environment:
-      POSTGRES_DB: ai_agent_memory
-      POSTGRES_USER: ai_agent_user
-      POSTGRES_PASSWORD: ai_agent_password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "5432:5432"
-    networks:
-      - ai_agent_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ai_agent_user -d ai_agent_memory"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
   # Redis Cache
   redis:
     image: redis:7-alpine
     container_name: ai_agent_memory_redis
-    command: redis-server --appendonly yes --requirepass redis_password
+    command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
       - redis_data:/data
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     ports:
       - "6379:6379"
     networks:
@@ -39,49 +17,27 @@ services:
       timeout: 10s
       retries: 3
 
-  # Chroma Vector Database
-  chroma:
-    image: chromadb/chroma:latest
-    container_name: ai_agent_memory_chroma
-    environment:
-      - CHROMA_SERVER_HOST=0.0.0.0
-      - CHROMA_SERVER_HTTP_PORT=8000
-      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["*"]
-    volumes:
-      - chroma_data:/chroma/chroma
-    ports:
-      - "8000:8000"
-    networks:
-      - ai_agent_network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # AI Agent Memory Router API
+  # AI Agent Memory Router API (with SQLite)
   api:
     build:
       context: .
-      dockerfile: docker/Dockerfile
+      dockerfile: Dockerfile
     container_name: ai_agent_memory_api
+    user: "501:501"  # Use host user ID to match volume permissions
     environment:
       - ENVIRONMENT=development
-      - DATABASE_URL=postgresql+asyncpg://ai_agent_user:ai_agent_password@postgres:5432/ai_agent_memory
-      - REDIS_URL=redis://:redis_password@redis:6379/0
-      - CHROMA_HOST=chroma
-      - CHROMA_PORT=8000
+      - DATABASE_TYPE=sqlite
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/ai_agent_memory.db
+      - REDIS_URL=redis://redis:6379/0
+      - LOG_LEVEL=INFO
     volumes:
-      - ./app:/app/app
+      - ./data:/app/data
+      - ./app:/app/app:ro  # Read-only for development
       - ./logs:/app/logs
     ports:
       - "8000:8000"
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
-        condition: service_healthy
-      chroma:
         condition: service_healthy
     networks:
       - ai_agent_network
@@ -91,29 +47,29 @@ services:
       timeout: 10s
       retries: 3
 
-  # MCP Server
+  # MCP Server (with SQLite)
   mcp:
     build:
       context: .
-      dockerfile: docker/Dockerfile.mcp
+      dockerfile: Dockerfile
     container_name: ai_agent_memory_mcp
+    user: "501:501"  # Use host user ID to match volume permissions
     environment:
       - ENVIRONMENT=development
-      - DATABASE_URL=postgresql+asyncpg://ai_agent_user:ai_agent_password@postgres:5432/ai_agent_memory
-      - REDIS_URL=redis://:redis_password@redis:6379/0
-      - CHROMA_HOST=chroma
-      - CHROMA_PORT=8000
+      - DATABASE_TYPE=sqlite
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/ai_agent_memory.db
+      - REDIS_URL=redis://redis:6379/0
+      - LOG_LEVEL=INFO
+      - MCP_SERVER=true
+      - MCP_PORT=8001
     volumes:
-      - ./app:/app/app
+      - ./data:/app/data
+      - ./app:/app/app:ro  # Read-only for development
       - ./logs:/app/logs
     ports:
       - "8001:8001"
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
-        condition: service_healthy
-      chroma:
         condition: service_healthy
     networks:
       - ai_agent_network
@@ -122,68 +78,10 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-
-  # Nginx Reverse Proxy (Optional)
-  nginx:
-    image: nginx:alpine
-    container_name: ai_agent_memory_nginx
-    volumes:
-      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
-    ports:
-      - "80:80"
-      - "443:443"
-    depends_on:
-      - api
-      - mcp
-    networks:
-      - ai_agent_network
-
-  # Prometheus Monitoring (Optional)
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: ai_agent_memory_prometheus
-    volumes:
-      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    ports:
-      - "9090:9090"
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
-      - '--web.enable-lifecycle'
-    networks:
-      - ai_agent_network
-
-  # Grafana Dashboard (Optional)
-  grafana:
-    image: grafana/grafana:latest
-    container_name: ai_agent_memory_grafana
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
-    ports:
-      - "3000:3000"
-    depends_on:
-      - prometheus
-    networks:
-      - ai_agent_network
+    command: ["python", "-c", "import asyncio; from app.core.mcp_server import start_mcp_server; asyncio.run(start_mcp_server())"]
 
 volumes:
-  postgres_data:
-    driver: local
   redis_data:
-    driver: local
-  chroma_data:
-    driver: local
-  prometheus_data:
-    driver: local
-  grafana_data:
     driver: local
 
 networks:

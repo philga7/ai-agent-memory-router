@@ -93,7 +93,7 @@ async def health_check() -> HealthStatus:
         
         # Record metrics
         duration = time.time() - start_time
-        record_request_duration(duration, "GET", "/health/", 200)
+        record_request_duration("GET", "/health/", duration)
         record_request("GET", "/health/", 200)
         
         return result
@@ -101,7 +101,7 @@ async def health_check() -> HealthStatus:
     except Exception as e:
         # Record error metrics
         duration = time.time() - start_time
-        record_request_duration(duration, "GET", "/health/", 500)
+        record_request_duration("GET", "/health/", duration)
         record_request("GET", "/health/", 200)
         
         logger.error(f"Health check failed: {e}")
@@ -201,7 +201,7 @@ async def detailed_health_check() -> DetailedHealthResponse:
         
         # Record metrics
         duration = time.time() - start_time
-        record_request_duration(duration, "GET", "/health/detailed", 200)
+        record_request_duration("GET", "/health/detailed", duration)
         record_request("GET", "/health/detailed", 200)
         
         logger.info(f"Detailed health check completed: {overall_status}")
@@ -210,7 +210,7 @@ async def detailed_health_check() -> DetailedHealthResponse:
     except Exception as e:
         # Record error metrics
         duration = time.time() - start_time
-        record_request_duration(duration, "GET", "/health/detailed", 500)
+        record_request_duration("GET", "/health/detailed", duration)
         record_request("GET", "/health/detailed", 500)
         
         logger.error(f"Detailed health check failed: {e}")
@@ -244,7 +244,7 @@ async def database_health_check():
         
         # Record metrics
         duration = time.time() - start_time
-        record_request_duration(duration, "GET", "/health/database", 200)
+        record_request_duration("GET", "/health/database", duration)
         record_request("GET", "/health/database", 200)
         
         return result
@@ -252,7 +252,7 @@ async def database_health_check():
     except Exception as e:
         # Record error metrics
         duration = time.time() - start_time
-        record_request_duration(duration, "GET", "/health/database", 500)
+        record_request_duration("GET", "/health/database", duration)
         record_request("GET", "/health/database", 500)
         
         logger.error(f"Database health check failed: {e}")
@@ -262,9 +262,9 @@ async def database_health_check():
 @router.get(
     "/mcp",
     summary="MCP server health check",
-    description="Health check for MCP server component"
+    description="Check MCP server health and status"
 )
-async def mcp_health_check():
+async def mcp_health_check_endpoint():
     """MCP server health check endpoint."""
     
     start_time = time.time()
@@ -289,7 +289,7 @@ async def mcp_health_check():
         
         # Record metrics
         duration = time.time() - start_time
-        record_request_duration(duration, "GET", "/health/mcp", 200)
+        record_request_duration("GET", "/health/mcp", duration)
         record_request("GET", "/health/mcp", 200)
         
         return result
@@ -297,7 +297,7 @@ async def mcp_health_check():
     except Exception as e:
         # Record error metrics
         duration = time.time() - start_time
-        record_request_duration(duration, "GET", "/health/mcp", 500)
+        record_request_duration("GET", "/health/mcp", duration)
         record_request("GET", "/health/mcp", 500)
         
         logger.error(f"MCP server health check failed: {e}")
@@ -345,7 +345,7 @@ async def get_system_metrics() -> MetricsResponse:
         
         # Record metrics
         duration = time.time() - start_time
-        record_request_duration(duration, "GET", "/health/metrics", 200)
+        record_request_duration("GET", "/health/metrics", duration)
         record_request("GET", "/health/metrics", 200)
         
         return result
@@ -353,7 +353,7 @@ async def get_system_metrics() -> MetricsResponse:
     except Exception as e:
         # Record error metrics
         duration = time.time() - start_time
-        record_request_duration(duration, "GET", "/health/metrics", 500)
+        record_request_duration("GET", "/health/metrics", duration)
         record_request("GET", "/health/metrics", 500)
         
         logger.error(f"System metrics retrieval failed: {e}")
@@ -375,7 +375,7 @@ async def readiness_check():
         
         # Check critical components
         db_ready = await check_database_health()
-        mcp_ready = await mcp_health_check()
+        mcp_ready = await mcp_health_check_endpoint()
         
         # Application is ready if critical components are healthy
         ready = db_ready and mcp_ready
@@ -392,7 +392,7 @@ async def readiness_check():
         
         # Record metrics
         duration = time.time() - start_time
-        record_request_duration(duration, "GET", "/health/ready", 200)
+        record_request_duration("GET", "/health/ready", duration)
         record_request("GET", "/health/ready", 200)
         
         return result
@@ -400,7 +400,7 @@ async def readiness_check():
     except Exception as e:
         # Record error metrics
         duration = time.time() - start_time
-        record_request_duration(duration, "GET", "/health/ready", 500)
+        record_request_duration("GET", "/health/ready", duration)
         record_request("GET", "/health/ready", 500)
         
         logger.error(f"Readiness check failed: {e}")
@@ -430,7 +430,7 @@ async def liveness_check():
         
         # Record metrics
         duration = time.time() - start_time
-        record_request_duration(duration, "GET", "/health/live", 200)
+        record_request_duration("GET", "/health/live", duration)
         record_request("GET", "/health/live", 200)
         
         return result
@@ -438,7 +438,7 @@ async def liveness_check():
     except Exception as e:
         # Record error metrics
         duration = time.time() - start_time
-        record_request_duration(duration, "GET", "/health/live", 500)
+        record_request_duration("GET", "/health/live", duration)
         record_request("GET", "/health/live", 500)
         
         logger.error(f"Liveness check failed: {e}")
@@ -500,7 +500,7 @@ async def get_system_status():
         
         # Record metrics
         duration = time.time() - start_time
-        record_request_duration(duration, "GET", "/health/status", 200)
+        record_request_duration("GET", "/health/status", duration)
         record_request("GET", "/health/status", 200)
         
         return result
@@ -508,7 +508,7 @@ async def get_system_status():
     except Exception as e:
         # Record error metrics
         duration = time.time() - start_time
-        record_request_duration(duration, "GET", "/health/status", 500)
+        record_request_duration("GET", "/health/status", duration)
         record_request("GET", "/health/status", 500)
         
         logger.error(f"System status retrieval failed: {e}")

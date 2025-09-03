@@ -7,7 +7,8 @@ with environment variable support and validation.
 
 import os
 from typing import List, Optional
-from pydantic import BaseSettings, Field, validator
+from pydantic_settings import BaseSettings
+from pydantic import Field, validator
 
 
 class DatabaseSettings(BaseSettings):
@@ -21,8 +22,7 @@ class DatabaseSettings(BaseSettings):
     max_overflow: int = Field(default=30, description="Maximum database connections")
     pool_timeout: int = Field(default=30, description="Database connection timeout")
     
-    class Config:
-        env_prefix = "DATABASE_"
+    model_config = {"env_prefix": "DATABASE_"}
 
 
 class RedisSettings(BaseSettings):
@@ -36,8 +36,7 @@ class RedisSettings(BaseSettings):
     password: Optional[str] = Field(default=None, description="Redis password")
     pool_size: int = Field(default=10, description="Redis connection pool size")
     
-    class Config:
-        env_prefix = "REDIS_"
+    model_config = {"env_prefix": "REDIS_"}
 
 
 class ChromaSettings(BaseSettings):
@@ -50,8 +49,7 @@ class ChromaSettings(BaseSettings):
         description="Default collection name for agent memories"
     )
     
-    class Config:
-        env_prefix = "CHROMA_"
+    model_config = {"env_prefix": "CHROMA_"}
 
 
 class SecuritySettings(BaseSettings):
@@ -71,8 +69,7 @@ class SecuritySettings(BaseSettings):
         description="Refresh token expiration time in days"
     )
     
-    class Config:
-        env_prefix = ""
+    model_config = {"env_prefix": ""}
 
 
 class CipherSettings(BaseSettings):
@@ -87,8 +84,7 @@ class CipherSettings(BaseSettings):
         description="Cipher API key"
     )
     
-    class Config:
-        env_prefix = "CIPHER_"
+    model_config = {"env_prefix": "CIPHER_"}
 
 
 class WeaviateSettings(BaseSettings):
@@ -103,8 +99,7 @@ class WeaviateSettings(BaseSettings):
         description="Weaviate MCP server URL"
     )
     
-    class Config:
-        env_prefix = "WEAVIATE_"
+    model_config = {"env_prefix": "WEAVIATE_"}
 
 
 class MemorySettings(BaseSettings):
@@ -123,8 +118,7 @@ class MemorySettings(BaseSettings):
         description="Memory retention period in days"
     )
     
-    class Config:
-        env_prefix = "MEMORY_"
+    model_config = {"env_prefix": "MEMORY_"}
 
 
 class AgentSettings(BaseSettings):
@@ -143,8 +137,7 @@ class AgentSettings(BaseSettings):
         description="Agent timeout in seconds"
     )
     
-    class Config:
-        env_prefix = "AGENT_"
+    model_config = {"env_prefix": "AGENT_"}
 
 
 class RoutingSettings(BaseSettings):
@@ -163,8 +156,7 @@ class RoutingSettings(BaseSettings):
         description="Routing timeout in seconds"
     )
     
-    class Config:
-        env_prefix = "ROUTING_"
+    model_config = {"env_prefix": "ROUTING_"}
 
 
 class LoggingSettings(BaseSettings):
@@ -178,8 +170,7 @@ class LoggingSettings(BaseSettings):
     max_size: str = Field(default="100MB", description="Maximum log file size")
     backup_count: int = Field(default=5, description="Number of log backups")
     
-    class Config:
-        env_prefix = "LOG_"
+    model_config = {"env_prefix": "LOG_"}
 
 
 class MonitoringSettings(BaseSettings):
@@ -192,8 +183,7 @@ class MonitoringSettings(BaseSettings):
         description="Health check interval in seconds"
     )
     
-    class Config:
-        env_prefix = "MONITORING_"
+    model_config = {"env_prefix": "MONITORING_"}
 
 
 class CacheSettings(BaseSettings):
@@ -209,8 +199,7 @@ class CacheSettings(BaseSettings):
     )
     enable_cache: bool = Field(default=True, description="Enable caching")
     
-    class Config:
-        env_prefix = "CACHE_"
+    model_config = {"env_prefix": "CACHE_"}
 
 
 class Settings(BaseSettings):
@@ -257,10 +246,11 @@ class Settings(BaseSettings):
     monitoring: MonitoringSettings = Field(default_factory=MonitoringSettings)
     cache: CacheSettings = Field(default_factory=CacheSettings)
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "case_sensitive": False
+    }
     
     @validator("environment")
     def validate_environment(cls, v):

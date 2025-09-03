@@ -23,7 +23,7 @@ from app.core.database import init_database, close_database
 from app.core.logging import setup_logging
 from app.api.v1.router import api_router
 from app.core.mcp_server import start_mcp_server, stop_mcp_server
-from app.core.metrics import setup_metrics
+from app.core.metrics import get_metrics_collector
 
 # Setup logging
 setup_logging()
@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
         logger.info("Database initialized successfully")
         
         # Setup metrics
-        setup_metrics()
+        get_metrics_collector()
         logger.info("Metrics setup completed")
         
         # Start MCP server in background
