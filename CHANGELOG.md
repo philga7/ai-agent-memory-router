@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/philga7/ai-agent-memory-router/compare/v1.0.0...v1.1.0) (2025-09-03)
+
+
+### Features
+
+* **sql:** implement comprehensive SQLite storage abstraction layer ([#2](https://github.com/philga7/ai-agent-memory-router/issues/2)) ([9694492](https://github.com/philga7/ai-agent-memory-router/commit/9694492bc8b95d1cbc74768fca57c31352d5324b))
+
 # 1.0.0 (2025-09-03)
 
 
