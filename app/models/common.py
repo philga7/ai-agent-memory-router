@@ -15,19 +15,14 @@ from uuid import UUID, uuid4
 T = TypeVar('T')
 
 
-class TimestampMixin(BaseModel):
+class TimestampMixin:
     """Mixin to add timestamp fields to models."""
     
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
     updated_at: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
-    
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
 
 
-class IDMixin(BaseModel):
+class IDMixin:
     """Mixin to add ID field to models."""
     
     id: UUID = Field(default_factory=uuid4, description="Unique identifier")
@@ -39,7 +34,7 @@ class PaginationParams(BaseModel):
     page: int = Field(default=1, ge=1, description="Page number (1-based)")
     size: int = Field(default=20, ge=1, le=100, description="Page size (max 100)")
     sort_by: Optional[str] = Field(default="created_at", description="Sort field")
-    sort_order: str = Field(default="desc", regex="^(asc|desc)$", description="Sort order")
+    sort_order: str = Field(default="desc", pattern="^(asc|desc)$", description="Sort order")
     
     @validator('page')
     def validate_page(cls, v):
@@ -212,7 +207,7 @@ class SortOption(BaseModel):
     """Sort option model."""
     
     field: str = Field(..., description="Field to sort by")
-    order: str = Field(default="asc", regex="^(asc|desc)$", description="Sort order")
+    order: str = Field(default="asc", pattern="^(asc|desc)$", description="Sort order")
     
     @validator('order')
     def validate_order(cls, v):
