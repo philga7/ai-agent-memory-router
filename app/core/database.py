@@ -42,18 +42,42 @@ async def init_database() -> None:
     try:
         logger.info("Initializing database connection...")
         
-        # Create async engine
-        _engine = create_async_engine(
-            settings.database.url,
-            echo=settings.debug,
-            pool_size=settings.database.pool_size,
-            max_overflow=settings.database.max_overflow,
-            pool_timeout=settings.database.pool_timeout,
-            pool_pre_ping=True,
-            pool_recycle=3600,
-            # Use NullPool for testing
-            poolclass=NullPool if settings.is_development else None
-        )
+        # For SQLite, ensure the database file exists
+        if "sqlite" in settings.database.url.lower():
+            import os
+            # Extract database path from URL
+            db_path = settings.database.url.replace("sqlite+aiosqlite:///", "")
+            if db_path.startswith("/"):
+                # This is an absolute path, use it as is
+                db_path = db_path
+            else:
+                # This is a relative path, make it absolute
+                db_path = os.path.join("/app", db_path)
+            
+            # The data directory should already exist from the volume mount
+            # Just check if the database file exists, and if not, it will be created by SQLite
+            logger.info(f"Using SQLite database path: {db_path}")
+        
+        # Create async engine with SQLite-aware configuration
+        engine_kwargs = {
+            "url": settings.database.url,
+            "echo": settings.debug,
+            "pool_pre_ping": True,
+        }
+        
+        # SQLite doesn't support connection pooling, so use NullPool
+        if "sqlite" in settings.database.url.lower():
+            engine_kwargs["poolclass"] = NullPool
+        else:
+            # PostgreSQL-specific settings
+            engine_kwargs.update({
+                "pool_size": settings.database.pool_size,
+                "max_overflow": settings.database.max_overflow,
+                "pool_timeout": settings.database.pool_timeout,
+                "pool_recycle": 3600,
+            })
+        
+        _engine = create_async_engine(**engine_kwargs)
         
         # Create session factory
         _session_factory = async_sessionmaker(
