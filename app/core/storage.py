@@ -245,6 +245,190 @@ class UnifiedStorage(ABC):
         """Get context storage interface."""
         pass
 
+
+class CipherHybridStorage(UnifiedStorage):
+    """Hybrid storage implementation using Cipher MCP + SQLite."""
+    
+    def __init__(self, sqlite_storage: UnifiedStorage, cipher_service=None):
+        """Initialize hybrid storage.
+        
+        Args:
+            sqlite_storage: SQLite storage instance for local metadata
+            cipher_service: Cipher service instance for external storage
+        """
+        self.sqlite_storage = sqlite_storage
+        self.cipher_service = cipher_service
+        
+        # Import here to avoid circular imports
+        if cipher_service is None:
+            from app.services.cipher_service import get_cipher_service
+            self._cipher_service_factory = get_cipher_service
+        else:
+            self._cipher_service_factory = lambda: cipher_service
+    
+    async def initialize(self) -> bool:
+        """Initialize hybrid storage system."""
+        try:
+            # Initialize SQLite storage
+            sqlite_success = await self.sqlite_storage.initialize()
+            if not sqlite_success:
+                logger.error("Failed to initialize SQLite storage")
+                return False
+            
+            # Initialize Cipher service
+            self.cipher_service = await self._cipher_service_factory()
+            
+            logger.info("Hybrid storage initialized successfully")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize hybrid storage: {e}")
+            return False
+    
+    async def close(self) -> None:
+        """Close all storage connections."""
+        try:
+            if self.cipher_service:
+                await self.cipher_service.close()
+            await self.sqlite_storage.close()
+            logger.info("Hybrid storage closed")
+        except Exception as e:
+            logger.error(f"Error closing hybrid storage: {e}")
+    
+    @property
+    def memory_storage(self) -> MemoryStorage:
+        """Get hybrid memory storage interface."""
+        return CipherHybridMemoryStorage(self.sqlite_storage.memory_storage, self.cipher_service)
+    
+    @property
+    def metadata_storage(self) -> MetadataStorage:
+        """Get metadata storage interface (SQLite only)."""
+        return self.sqlite_storage.metadata_storage
+    
+    @property
+    def routing_storage(self) -> RoutingStorage:
+        """Get routing storage interface (SQLite only)."""
+        return self.sqlite_storage.routing_storage
+    
+    @property
+    def agent_storage(self) -> AgentStorage:
+        """Get agent storage interface (SQLite only)."""
+        return self.sqlite_storage.agent_storage
+    
+    @property
+    def context_storage(self) -> ContextStorage:
+        """Get context storage interface (SQLite only)."""
+        return self.sqlite_storage.context_storage
+
+
+class CipherHybridMemoryStorage(MemoryStorage):
+    """Hybrid memory storage using Cipher + SQLite."""
+    
+    def __init__(self, sqlite_memory_storage: MemoryStorage, cipher_service):
+        """Initialize hybrid memory storage.
+        
+        Args:
+            sqlite_memory_storage: SQLite memory storage instance
+            cipher_service: Cipher service instance
+        """
+        self.sqlite_storage = sqlite_memory_storage
+        self.cipher_service = cipher_service
+    
+    async def store_memory(self, memory_data: Dict[str, Any]) -> str:
+        """Store memory using hybrid storage."""
+        try:
+            # Extract required fields
+            project_id = memory_data.get("project_id", "default")
+            agent_id = memory_data.get("agent_id")
+            content = memory_data.get("content")
+            memory_type = memory_data.get("memory_type", "general")
+            tags = memory_data.get("tags", [])
+            metadata = memory_data.get("metadata", {})
+            priority = memory_data.get("priority", 1)
+            expires_at = memory_data.get("expires_at")
+            
+            if not all([agent_id, content]):
+                raise ValueError("agent_id and content are required")
+            
+            # Store using Cipher service
+            memory_id = await self.cipher_service.store_memory(
+                project_id=project_id,
+                agent_id=agent_id,
+                memory_content=content,
+                memory_type=memory_type,
+                tags=tags,
+                metadata=metadata,
+                priority=priority,
+                expires_at=expires_at
+            )
+            
+            return memory_id
+            
+        except Exception as e:
+            logger.error(f"Failed to store memory in hybrid storage: {e}")
+            raise
+    
+    async def get_memory(self, memory_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve memory using hybrid storage."""
+        try:
+            # For now, we'll need to determine the project_id
+            # In a real implementation, this would be stored in routing info
+            project_id = "default"  # This should be retrieved from routing storage
+            
+            return await self.cipher_service.retrieve_memory(project_id, memory_id)
+            
+        except Exception as e:
+            logger.error(f"Failed to retrieve memory from hybrid storage: {e}")
+            return None
+    
+    async def search_memories(self, query: str, filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+        """Search memories using hybrid storage."""
+        try:
+            project_id = filters.get("project_id", "default") if filters else "default"
+            agent_id = filters.get("agent_id") if filters else None
+            memory_type = filters.get("memory_type") if filters else None
+            tags = filters.get("tags") if filters else None
+            limit = filters.get("limit", 10) if filters else 10
+            offset = filters.get("offset", 0) if filters else 0
+            
+            results = await self.cipher_service.search_memories(
+                project_id=project_id,
+                query=query,
+                agent_id=agent_id,
+                memory_type=memory_type,
+                tags=tags,
+                limit=limit,
+                offset=offset
+            )
+            
+            return results.get("results", [])
+            
+        except Exception as e:
+            logger.error(f"Failed to search memories in hybrid storage: {e}")
+            return []
+    
+    async def update_memory(self, memory_id: str, updates: Dict[str, Any]) -> bool:
+        """Update memory using hybrid storage."""
+        try:
+            project_id = updates.get("project_id", "default")
+            
+            return await self.cipher_service.update_memory(project_id, memory_id, updates)
+            
+        except Exception as e:
+            logger.error(f"Failed to update memory in hybrid storage: {e}")
+            return False
+    
+    async def delete_memory(self, memory_id: str) -> bool:
+        """Delete memory using hybrid storage."""
+        try:
+            project_id = "default"  # This should be retrieved from routing storage
+            
+            return await self.cipher_service.delete_memory(project_id, memory_id)
+            
+        except Exception as e:
+            logger.error(f"Failed to delete memory from hybrid storage: {e}")
+            return False
+
 class SQLiteBackend(StorageBackend):
     """SQLite storage backend implementation."""
     

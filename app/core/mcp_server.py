@@ -31,7 +31,17 @@ class MCPServer:
             "context_get": self.context_get,
             "memory_store": self.memory_store,
             "agent_status": self.agent_status,
-            "routing_stats": self.routing_stats
+            "routing_stats": self.routing_stats,
+            # Cipher integration tools
+            "cipher_store_memory": self.cipher_store_memory,
+            "cipher_retrieve_memory": self.cipher_retrieve_memory,
+            "cipher_search_memories": self.cipher_search_memories,
+            "cipher_update_memory": self.cipher_update_memory,
+            "cipher_delete_memory": self.cipher_delete_memory,
+            "cipher_create_project": self.cipher_create_project,
+            "cipher_get_project": self.cipher_get_project,
+            "cipher_list_projects": self.cipher_list_projects,
+            "cipher_health_check": self.cipher_health_check
         }
         
         self.server_task: Optional[asyncio.Task] = None
@@ -415,6 +425,354 @@ class MCPServer:
         except Exception as e:
             logger.error(f"MCP routing_stats failed: {e}")
             raise
+    
+    # Cipher Integration MCP Tools
+    
+    async def cipher_store_memory(
+        self,
+        project_id: str,
+        agent_id: str,
+        memory_content: str,
+        memory_type: str = "general",
+        tags: Optional[List[str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        priority: int = 1
+    ) -> Dict[str, Any]:
+        """Store memory in Cipher via MCP."""
+        try:
+            logger.info(f"Storing memory in Cipher for project {project_id}, agent {agent_id}")
+            
+            # Import here to avoid circular imports
+            from app.services.cipher_service import get_cipher_service
+            
+            cipher_service = await get_cipher_service()
+            
+            memory_id = await cipher_service.store_memory(
+                project_id=project_id,
+                agent_id=agent_id,
+                memory_content=memory_content,
+                memory_type=memory_type,
+                tags=tags,
+                metadata=metadata,
+                priority=priority
+            )
+            
+            result = {
+                "memory_id": memory_id,
+                "project_id": project_id,
+                "agent_id": agent_id,
+                "memory_type": memory_type,
+                "status": "stored",
+                "timestamp": asyncio.get_event_loop().time()
+            }
+            
+            if tags:
+                result["tags"] = tags
+            if metadata:
+                result["metadata"] = metadata
+            
+            logger.info(f"Cipher memory storage completed: {memory_id}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"MCP cipher_store_memory failed: {e}")
+            raise
+    
+    async def cipher_retrieve_memory(
+        self,
+        project_id: str,
+        memory_id: str,
+        use_cache: bool = True
+    ) -> Dict[str, Any]:
+        """Retrieve memory from Cipher via MCP."""
+        try:
+            logger.info(f"Retrieving memory {memory_id} from Cipher for project {project_id}")
+            
+            from app.services.cipher_service import get_cipher_service
+            
+            cipher_service = await get_cipher_service()
+            
+            memory_data = await cipher_service.retrieve_memory(
+                project_id=project_id,
+                memory_id=memory_id,
+                use_cache=use_cache
+            )
+            
+            if memory_data:
+                result = {
+                    "memory_id": memory_id,
+                    "project_id": project_id,
+                    "memory_data": memory_data,
+                    "status": "retrieved",
+                    "from_cache": memory_data.get("from_cache", False),
+                    "timestamp": asyncio.get_event_loop().time()
+                }
+            else:
+                result = {
+                    "memory_id": memory_id,
+                    "project_id": project_id,
+                    "status": "not_found",
+                    "timestamp": asyncio.get_event_loop().time()
+                }
+            
+            logger.info(f"Cipher memory retrieval completed: {memory_id}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"MCP cipher_retrieve_memory failed: {e}")
+            raise
+    
+    async def cipher_search_memories(
+        self,
+        project_id: str,
+        query: str,
+        agent_id: Optional[str] = None,
+        memory_type: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        limit: int = 10,
+        offset: int = 0
+    ) -> Dict[str, Any]:
+        """Search memories in Cipher via MCP."""
+        try:
+            logger.info(f"Searching memories in Cipher for project {project_id} with query: {query}")
+            
+            from app.services.cipher_service import get_cipher_service
+            
+            cipher_service = await get_cipher_service()
+            
+            search_results = await cipher_service.search_memories(
+                project_id=project_id,
+                query=query,
+                agent_id=agent_id,
+                memory_type=memory_type,
+                tags=tags,
+                limit=limit,
+                offset=offset
+            )
+            
+            result = {
+                "project_id": project_id,
+                "query": query,
+                "results": search_results.get("results", []),
+                "total": search_results.get("total", 0),
+                "from_cache": search_results.get("from_cache", False),
+                "timestamp": asyncio.get_event_loop().time()
+            }
+            
+            if agent_id:
+                result["agent_id"] = agent_id
+            if memory_type:
+                result["memory_type"] = memory_type
+            if tags:
+                result["tags"] = tags
+            
+            logger.info(f"Cipher memory search completed: {len(result['results'])} results")
+            return result
+            
+        except Exception as e:
+            logger.error(f"MCP cipher_search_memories failed: {e}")
+            raise
+    
+    async def cipher_update_memory(
+        self,
+        project_id: str,
+        memory_id: str,
+        updates: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Update memory in Cipher via MCP."""
+        try:
+            logger.info(f"Updating memory {memory_id} in Cipher for project {project_id}")
+            
+            from app.services.cipher_service import get_cipher_service
+            
+            cipher_service = await get_cipher_service()
+            
+            success = await cipher_service.update_memory(
+                project_id=project_id,
+                memory_id=memory_id,
+                updates=updates
+            )
+            
+            result = {
+                "memory_id": memory_id,
+                "project_id": project_id,
+                "updates": updates,
+                "status": "updated" if success else "failed",
+                "timestamp": asyncio.get_event_loop().time()
+            }
+            
+            logger.info(f"Cipher memory update completed: {memory_id}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"MCP cipher_update_memory failed: {e}")
+            raise
+    
+    async def cipher_delete_memory(
+        self,
+        project_id: str,
+        memory_id: str
+    ) -> Dict[str, Any]:
+        """Delete memory from Cipher via MCP."""
+        try:
+            logger.info(f"Deleting memory {memory_id} from Cipher for project {project_id}")
+            
+            from app.services.cipher_service import get_cipher_service
+            
+            cipher_service = await get_cipher_service()
+            
+            success = await cipher_service.delete_memory(
+                project_id=project_id,
+                memory_id=memory_id
+            )
+            
+            result = {
+                "memory_id": memory_id,
+                "project_id": project_id,
+                "status": "deleted" if success else "failed",
+                "timestamp": asyncio.get_event_loop().time()
+            }
+            
+            logger.info(f"Cipher memory deletion completed: {memory_id}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"MCP cipher_delete_memory failed: {e}")
+            raise
+    
+    async def cipher_create_project(
+        self,
+        project_id: str,
+        project_name: str,
+        description: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Create project in Cipher via MCP."""
+        try:
+            logger.info(f"Creating project {project_id}: {project_name} in Cipher")
+            
+            from app.services.cipher_service import get_cipher_service
+            
+            cipher_service = await get_cipher_service()
+            
+            success = await cipher_service.create_project(
+                project_id=project_id,
+                project_name=project_name,
+                description=description,
+                metadata=metadata
+            )
+            
+            result = {
+                "project_id": project_id,
+                "project_name": project_name,
+                "status": "created" if success else "failed",
+                "timestamp": asyncio.get_event_loop().time()
+            }
+            
+            if description:
+                result["description"] = description
+            if metadata:
+                result["metadata"] = metadata
+            
+            logger.info(f"Cipher project creation completed: {project_id}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"MCP cipher_create_project failed: {e}")
+            raise
+    
+    async def cipher_get_project(
+        self,
+        project_id: str
+    ) -> Dict[str, Any]:
+        """Get project information from Cipher via MCP."""
+        try:
+            logger.info(f"Getting project {project_id} from Cipher")
+            
+            from app.services.cipher_service import get_cipher_service
+            
+            cipher_service = await get_cipher_service()
+            
+            project_info = await cipher_service.get_project_info(project_id)
+            
+            if project_info:
+                result = {
+                    "project_id": project_id,
+                    "project_info": project_info,
+                    "status": "found",
+                    "timestamp": asyncio.get_event_loop().time()
+                }
+            else:
+                result = {
+                    "project_id": project_id,
+                    "status": "not_found",
+                    "timestamp": asyncio.get_event_loop().time()
+                }
+            
+            logger.info(f"Cipher project retrieval completed: {project_id}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"MCP cipher_get_project failed: {e}")
+            raise
+    
+    async def cipher_list_projects(
+        self,
+        limit: int = 100,
+        offset: int = 0
+    ) -> Dict[str, Any]:
+        """List projects in Cipher via MCP."""
+        try:
+            logger.info("Listing projects in Cipher")
+            
+            from app.core.cipher_client import get_cipher_client
+            
+            cipher_client = await get_cipher_client()
+            
+            projects_data = await cipher_client.list_projects(limit=limit, offset=offset)
+            
+            result = {
+                "projects": projects_data.get("projects", []),
+                "total": projects_data.get("total", 0),
+                "limit": limit,
+                "offset": offset,
+                "timestamp": asyncio.get_event_loop().time()
+            }
+            
+            logger.info(f"Cipher project listing completed: {len(result['projects'])} projects")
+            return result
+            
+        except Exception as e:
+            logger.error(f"MCP cipher_list_projects failed: {e}")
+            raise
+    
+    async def cipher_health_check(self) -> Dict[str, Any]:
+        """Check Cipher MCP server health via MCP."""
+        try:
+            logger.info("Checking Cipher MCP server health")
+            
+            from app.core.cipher_client import get_cipher_client
+            
+            cipher_client = await get_cipher_client()
+            
+            health_data = await cipher_client.health_check()
+            
+            result = {
+                "status": "healthy" if health_data.get("status") == "ok" else "unhealthy",
+                "health_data": health_data,
+                "timestamp": asyncio.get_event_loop().time()
+            }
+            
+            logger.info(f"Cipher health check completed: {result['status']}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"MCP cipher_health_check failed: {e}")
+            return {
+                "status": "unhealthy",
+                "error": str(e),
+                "timestamp": asyncio.get_event_loop().time()
+            }
 
 
 # Global MCP server instance
