@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/philga7/ai-agent-memory-router/compare/v1.2.0...v1.3.0) (2025-09-04)
+
+
+### Features
+
+* **cipher:** implement Cipher MCP integration with hybrid storage ([#4](https://github.com/philga7/ai-agent-memory-router/issues/4)) ([ab5854d](https://github.com/philga7/ai-agent-memory-router/commit/ab5854d91a14724052ecd0fdf90b05cf2942467a))
+
 # [1.2.0](https://github.com/philga7/ai-agent-memory-router/compare/v1.1.0...v1.2.0) (2025-09-03)
 
 
