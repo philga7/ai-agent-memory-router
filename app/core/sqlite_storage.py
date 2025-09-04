@@ -166,6 +166,34 @@ class SQLiteTransactionManager(TransactionManager):
         """Rollback the current transaction."""
         if self._current_connection:
             await self._current_connection.rollback()
+    
+    # Required abstract methods from TransactionManager
+    
+    async def begin_transaction(self):
+        """Begin a new transaction."""
+        if self._current_connection:
+            await self._current_connection.execute("BEGIN TRANSACTION")
+    
+    async def commit_transaction(self):
+        """Commit the current transaction."""
+        if self._current_connection:
+            await self._current_connection.commit()
+    
+    async def rollback_transaction(self):
+        """Rollback the current transaction."""
+        if self._current_connection:
+            await self._current_connection.rollback()
+    
+    async def __aenter__(self):
+        """Async context manager entry."""
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit."""
+        if exc_type is not None:
+            await self.rollback_transaction()
+        else:
+            await self.commit_transaction()
 
 
 class SQLiteMemoryStorage(MemoryStorage):
@@ -497,7 +525,69 @@ class SQLiteRoutingStorage(RoutingStorage):
         
         return route_id
     
-    async def get_route(self, route_id: str) -> Optional[MemoryRoute]:
+    # Required abstract methods from RoutingStorage
+    
+    async def create_route(self, route_data: Dict[str, Any]) -> str:
+        """Create a memory route and return its ID."""
+        # Convert dict to MemoryRoute object
+        route = MemoryRoute(
+            source_agent_id=route_data.get("source_agent_id"),
+            target_agent_id=route_data.get("target_agent_id"),
+            memory_id=route_data.get("memory_id"),
+            route_type=route_data.get("route_type", "direct"),
+            priority=route_data.get("priority", "normal"),
+            status=route_data.get("status", "pending"),
+            routing_reason=route_data.get("routing_reason", "")
+        )
+        return await self.store_route(route)
+    
+    async def get_routes_by_agent(self, agent_id: str) -> List[Dict[str, Any]]:
+        """Get all routes for a specific agent."""
+        conn = await self.connection_pool.get_connection()
+        try:
+            async with conn.execute("""
+                SELECT id, source_agent_id, target_agent_id, memory_id, route_type,
+                       priority, status, routing_reason, created_at, delivered_at, acknowledged_at
+                FROM memory_routes 
+                WHERE source_agent_id = ? OR target_agent_id = ?
+            """, (agent_id, agent_id)) as cursor:
+                rows = await cursor.fetchall()
+        finally:
+            await self.connection_pool.return_connection(conn)
+        
+        routes = []
+        for row in rows:
+            routes.append({
+                "id": row[0],
+                "source_agent_id": row[1],
+                "target_agent_id": row[2],
+                "memory_id": row[3],
+                "route_type": row[4],
+                "priority": row[5],
+                "status": row[6],
+                "routing_reason": row[7],
+                "created_at": row[8],
+                "delivered_at": row[9],
+                "acknowledged_at": row[10]
+            })
+        
+        return routes
+    
+    async def update_route_status(self, route_id: str, status: str) -> bool:
+        """Update route status."""
+        conn = await self.connection_pool.get_connection()
+        try:
+            cursor = await conn.execute("""
+                UPDATE memory_routes 
+                SET status = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (status, route_id))
+            await conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            await self.connection_pool.return_connection(conn)
+    
+    async def get_route(self, route_id: str) -> Optional[Dict[str, Any]]:
         """Retrieve a routing decision."""
         conn = await self.connection_pool.get_connection()
         try:
@@ -962,3 +1052,38 @@ class SQLiteUnifiedStorage(UnifiedStorage):
     @property
     def transaction(self) -> TransactionManager:
         return self._transaction
+    
+    # Required abstract methods from UnifiedStorage
+    
+    async def initialize(self) -> bool:
+        """Initialize the unified storage system."""
+        return await self._manager.initialize()
+    
+    async def close(self) -> None:
+        """Close all storage connections."""
+        await self._manager.close()
+    
+    @property
+    def memory_storage(self) -> MemoryStorage:
+        """Get memory storage interface."""
+        return self._memory
+    
+    @property
+    def metadata_storage(self) -> MetadataStorage:
+        """Get metadata storage interface."""
+        return self._metadata
+    
+    @property
+    def routing_storage(self) -> RoutingStorage:
+        """Get routing storage interface."""
+        return self._routing
+    
+    @property
+    def agent_storage(self) -> AgentStorage:
+        """Get agent storage interface."""
+        return self._agent
+    
+    @property
+    def context_storage(self) -> ContextStorage:
+        """Get context storage interface."""
+        return self._context

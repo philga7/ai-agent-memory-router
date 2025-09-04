@@ -11,7 +11,7 @@ from uuid import UUID, uuid4
 from datetime import datetime
 
 from app.core.logging import get_logger
-from app.core.metrics import track_memory_operation, track_memory_storage
+from app.core.metrics import record_memory_operation, get_metrics_collector
 from app.models.memory import (
     MemoryStore, MemoryStoreCreate, MemorySearch, MemorySearchResponse,
     MemorySearchResult, MemoryStats, MemoryRoute, MemoryRouteCreate
@@ -64,17 +64,18 @@ class MemoryService:
             self._update_stats_after_store(memory)
             
             # Track metrics
-            track_memory_storage(memory.memory_type, memory.importance)
+            metrics = get_metrics_collector()
+            metrics.record_memory_stored(memory.source.agent_id, memory.memory_type)
             
             duration = time.time() - start_time
-            track_memory_operation("store", duration, True)
+            record_memory_operation("store", memory.source.agent_id, True)
             
             logger.info(f"Memory stored successfully with ID: {memory.id}")
             return memory
             
         except Exception as e:
             duration = time.time() - start_time
-            track_memory_operation("store", duration, False)
+            record_memory_operation("store", "unknown", False)
             logger.error(f"Failed to store memory: {e}")
             raise
     
@@ -90,17 +91,17 @@ class MemoryService:
             
             if memory:
                 duration = time.time() - start_time
-                track_memory_operation("retrieve", duration, True)
+                record_memory_operation("retrieve", str(memory_id), True)
                 return memory
             else:
                 duration = time.time() - start_time
-                track_memory_operation("retrieve", duration, False)
+                record_memory_operation("retrieve", str(memory_id), False)
                 logger.warning(f"Memory not found: {memory_id}")
                 return None
                 
         except Exception as e:
             duration = time.time() - start_time
-            track_memory_operation("retrieve", duration, False)
+            record_memory_operation("retrieve", str(memory_id), False)
             logger.error(f"Failed to retrieve memory {memory_id}: {e}")
             raise
     
@@ -149,14 +150,14 @@ class MemoryService:
             )
             
             duration = time.time() - start_time
-            track_memory_operation("search", duration, True)
+            record_memory_operation("search", search_query.query or "unknown", True)
             
             logger.info(f"Memory search completed: {len(results)} results found")
             return response
             
         except Exception as e:
             duration = time.time() - start_time
-            track_memory_operation("search", duration, False)
+            record_memory_operation("search", search_query.query or "unknown", False)
             logger.error(f"Failed to search memories: {e}")
             raise
     
@@ -186,14 +187,14 @@ class MemoryService:
             self._update_stats_after_route(route)
             
             duration = time.time() - start_time
-            track_memory_operation("route_create", duration, True)
+            record_memory_operation("route_create", route_data.source_agent_id, True)
             
             logger.info(f"Memory route created successfully with ID: {route.id}")
             return route
             
         except Exception as e:
             duration = time.time() - start_time
-            track_memory_operation("route_create", duration, False)
+            record_memory_operation("route_create", "unknown", False)
             logger.error(f"Failed to create memory route: {e}")
             raise
     
@@ -238,19 +239,19 @@ class MemoryService:
                 self._update_stats_after_delete(memory)
                 
                 duration = time.time() - start_time
-                track_memory_operation("delete", duration, True)
+                record_memory_operation("delete", str(memory_id), True)
                 
                 logger.info(f"Memory deleted successfully: {memory_id}")
                 return True
             else:
                 duration = time.time() - start_time
-                track_memory_operation("delete", duration, False)
+                record_memory_operation("delete", str(memory_id), False)
                 logger.warning(f"Memory not found for deletion: {memory_id}")
                 return False
                 
         except Exception as e:
             duration = time.time() - start_time
-            track_memory_operation("delete", duration, False)
+            record_memory_operation("delete", str(memory_id), False)
             logger.error(f"Failed to delete memory {memory_id}: {e}")
             raise
     

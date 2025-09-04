@@ -83,6 +83,26 @@ class CipherSettings(BaseSettings):
         default="your-cipher-api-key-here",
         description="Cipher API key"
     )
+    timeout: int = Field(
+        default=30,
+        description="Cipher API request timeout in seconds"
+    )
+    max_retries: int = Field(
+        default=3,
+        description="Maximum retry attempts for Cipher operations"
+    )
+    retry_delay: float = Field(
+        default=1.0,
+        description="Delay between retry attempts in seconds"
+    )
+    cache_ttl_hours: int = Field(
+        default=1,
+        description="Cache TTL for local memory cache in hours"
+    )
+    enable_hybrid_storage: bool = Field(
+        default=True,
+        description="Enable hybrid storage (Cipher + SQLite)"
+    )
     
     model_config = {"env_prefix": "CIPHER_"}
 
@@ -249,7 +269,8 @@ class Settings(BaseSettings):
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
-        "case_sensitive": False
+        "case_sensitive": False,
+        "extra": "allow"
     }
     
     @validator("environment")
