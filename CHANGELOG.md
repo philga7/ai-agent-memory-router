@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/philga7/ai-agent-memory-router/compare/v1.4.0...v1.5.0) (2025-09-05)
+
+
+### Features
+
+* implement intelligent memory routing engine with SQLite backend ([#6](https://github.com/philga7/ai-agent-memory-router/issues/6)) ([44e23c2](https://github.com/philga7/ai-agent-memory-router/commit/44e23c2d7694c90eff50b72287af20b25146e11a))
+
 # [1.4.0](https://github.com/philga7/ai-agent-memory-router/compare/v1.3.0...v1.4.0) (2025-09-05)
 
 
