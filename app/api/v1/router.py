@@ -7,7 +7,7 @@ modules and handles API versioning and documentation.
 
 from fastapi import APIRouter
 
-from app.api.v1 import memory, agents, context, health
+from app.api.v1 import memory, agents, context, health, universal
 
 # Create main API router
 api_router = APIRouter()
@@ -35,4 +35,10 @@ api_router.include_router(
     health.router,
     prefix="/health",
     tags=["Health & Monitoring"]
+)
+
+api_router.include_router(
+    universal.router,
+    prefix="/universal",
+    tags=["Universal Memory Access"]
 )
