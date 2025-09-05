@@ -79,6 +79,9 @@ class SQLiteConnectionPool:
         
         self._initialized = True
         logger.info(f"SQLite connection pool initialized with {self.max_connections} connections")
+        
+        # Initialize routing-specific tables
+        await self._init_routing_tables()
     
     async def _init_schema(self):
         """Initialize database schema from SQL file."""
@@ -105,6 +108,91 @@ class SQLiteConnectionPool:
             except Exception as e:
                 logger.error(f"Failed to execute schema: {e}")
                 raise
+    
+    async def _init_routing_tables(self):
+        """Initialize routing-specific tables."""
+        try:
+            conn = await self._create_new_connection()
+            try:
+                # Create routing decisions table
+                await conn.execute("""
+                    CREATE TABLE IF NOT EXISTS routing_decisions (
+                        id TEXT PRIMARY KEY,
+                        memory_id TEXT NOT NULL,
+                        backend TEXT NOT NULL,
+                        reason TEXT NOT NULL,
+                        confidence REAL NOT NULL,
+                        priority INTEGER NOT NULL,
+                        estimated_cost REAL NOT NULL,
+                        estimated_latency REAL NOT NULL,
+                        metadata TEXT,
+                        policy_id TEXT,
+                        rule_id TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (memory_id) REFERENCES memory_items(id) ON DELETE CASCADE
+                    )
+                """)
+                
+                # Create routing statistics table
+                await conn.execute("""
+                    CREATE TABLE IF NOT EXISTS routing_statistics (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        backend TEXT NOT NULL,
+                        operation_type TEXT NOT NULL,
+                        success_count INTEGER DEFAULT 0,
+                        failure_count INTEGER DEFAULT 0,
+                        total_latency REAL DEFAULT 0.0,
+                        total_cost REAL DEFAULT 0.0,
+                        recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                
+                # Create deduplication table
+                await conn.execute("""
+                    CREATE TABLE IF NOT EXISTS memory_deduplication (
+                        id TEXT PRIMARY KEY,
+                        content_hash TEXT NOT NULL UNIQUE,
+                        memory_id TEXT NOT NULL,
+                        backend TEXT NOT NULL,
+                        similarity_score REAL NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (memory_id) REFERENCES memory_items(id) ON DELETE CASCADE
+                    )
+                """)
+                
+                # Create routing policies table
+                await conn.execute("""
+                    CREATE TABLE IF NOT EXISTS routing_policies (
+                        id TEXT PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        description TEXT NOT NULL,
+                        strategy TEXT NOT NULL,
+                        rules TEXT NOT NULL,
+                        default_backend TEXT NOT NULL,
+                        enabled BOOLEAN DEFAULT TRUE,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                
+                # Create indexes for performance
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_routing_decisions_memory_id ON routing_decisions(memory_id)")
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_routing_decisions_backend ON routing_decisions(backend)")
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_routing_decisions_created_at ON routing_decisions(created_at)")
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_memory_deduplication_content_hash ON memory_deduplication(content_hash)")
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_memory_deduplication_similarity ON memory_deduplication(similarity_score)")
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_routing_statistics_backend ON routing_statistics(backend)")
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_routing_statistics_recorded_at ON routing_statistics(recorded_at)")
+                
+                await conn.commit()
+                logger.info("Routing tables initialized successfully")
+                
+            finally:
+                await conn.close()
+                
+        except Exception as e:
+            logger.error(f"Failed to initialize routing tables: {e}")
+            raise
     
     async def get_connection(self) -> aiosqlite.Connection:
         """Get a database connection from the pool."""
