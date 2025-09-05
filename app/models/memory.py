@@ -79,10 +79,27 @@ class MemorySource(BaseModel):
     
     @validator('type')
     def validate_source_type(cls, v):
-        valid_types = ['conversation', 'document', 'api', 'user_input', 'system', 'external']
+        valid_types = ['conversation', 'document', 'api', 'user_input', 'system', 'external', 'agent']
         if v not in valid_types:
             raise ValueError(f'Source type must be one of: {", ".join(valid_types)}')
         return v
+
+
+class AgentSource(MemorySource):
+    """Agent source model for Weaviate integration."""
+    
+    agent_id: str = Field(..., description="Agent identifier")
+    project_id: str = Field(default="default", description="Project identifier")
+    
+    def __init__(self, agent_id: str, project_id: str = "default", **kwargs):
+        super().__init__(
+            type="agent",
+            identifier=agent_id,
+            agent_id=agent_id,
+            project_id=project_id,
+            metadata={"project_id": project_id},
+            **kwargs
+        )
 
 
 class MemoryRoute(BaseModel, TimestampMixin, IDMixin):

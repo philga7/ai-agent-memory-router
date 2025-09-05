@@ -114,9 +114,45 @@ class WeaviateSettings(BaseSettings):
         default="https://weaviate.informedcrew.com",
         description="Weaviate API base URL"
     )
-    mcp_url: str = Field(
-        default="https://weaviate.informedcrew.com/mcp/http",
-        description="Weaviate MCP server URL"
+    api_key: Optional[str] = Field(
+        default=None,
+        description="Weaviate API key (if authentication is enabled)"
+    )
+    timeout: int = Field(
+        default=30,
+        description="Weaviate API request timeout in seconds"
+    )
+    max_retries: int = Field(
+        default=3,
+        description="Maximum retry attempts for Weaviate operations"
+    )
+    retry_delay: float = Field(
+        default=1.0,
+        description="Delay between retry attempts in seconds"
+    )
+    collection_name: str = Field(
+        default="AgentMemories",
+        description="Default Weaviate collection name for agent memories"
+    )
+    vector_dimension: int = Field(
+        default=384,
+        description="Vector dimension for embeddings (sentence-transformers/all-MiniLM-L6-v2)"
+    )
+    enable_hybrid_search: bool = Field(
+        default=True,
+        description="Enable hybrid search (vector + keyword)"
+    )
+    similarity_threshold: float = Field(
+        default=0.7,
+        description="Minimum similarity threshold for search results"
+    )
+    max_search_results: int = Field(
+        default=100,
+        description="Maximum number of search results to return"
+    )
+    batch_size: int = Field(
+        default=100,
+        description="Batch size for bulk operations"
     )
     
     model_config = {"env_prefix": "WEAVIATE_"}

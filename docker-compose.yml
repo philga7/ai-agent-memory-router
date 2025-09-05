@@ -30,6 +30,7 @@ services:
       - DATABASE_URL=sqlite+aiosqlite:////app/data/ai_agent_memory.db
       - REDIS_URL=redis://redis:6379/0
       - LOG_LEVEL=INFO
+      - WEAVIATE_API_URL=http://weaviate:8080
     volumes:
       - ./data:/app/data
       - ./app:/app/app:ro  # Read-only for development
@@ -38,6 +39,8 @@ services:
       - "8000:8000"
     depends_on:
       redis:
+        condition: service_healthy
+      weaviate:
         condition: service_healthy
     networks:
       - ai_agent_network
@@ -62,6 +65,7 @@ services:
       - LOG_LEVEL=INFO
       - MCP_SERVER=true
       - MCP_PORT=8001
+      - WEAVIATE_API_URL=http://weaviate:8080
     volumes:
       - ./data:/app/data
       - ./app:/app/app:ro  # Read-only for development
@@ -71,6 +75,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      weaviate:
+        condition: service_healthy
     networks:
       - ai_agent_network
     healthcheck:
@@ -79,6 +85,8 @@ services:
       timeout: 10s
       retries: 3
     command: ["python", "-c", "import asyncio; from app.core.mcp_server import start_mcp_server; asyncio.run(start_mcp_server())"]
+
+
 
 volumes:
   redis_data:
