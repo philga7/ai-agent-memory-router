@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/philga7/ai-agent-memory-router/compare/v1.3.0...v1.4.0) (2025-09-05)
+
+
+### Features
+
+* **weaviate:** implement complete Weaviate integration with external instance support ([#5](https://github.com/philga7/ai-agent-memory-router/issues/5)) ([59e4bd3](https://github.com/philga7/ai-agent-memory-router/commit/59e4bd31fb274a80d1d5655913d41659bd0533a3))
+
 # [1.3.0](https://github.com/philga7/ai-agent-memory-router/compare/v1.2.0...v1.3.0) (2025-09-04)
 
 
