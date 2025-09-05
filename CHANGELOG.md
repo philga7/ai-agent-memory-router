@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/philga7/ai-agent-memory-router/compare/v1.5.0...v1.6.0) (2025-09-05)
+
+
+### Features
+
+* implement Universal Memory Access API with project authentication and intelligent routing ([#7](https://github.com/philga7/ai-agent-memory-router/issues/7)) ([b95c708](https://github.com/philga7/ai-agent-memory-router/commit/b95c708a09985b56ba92b6653d03c0fae999faaf))
+
 # [1.5.0](https://github.com/philga7/ai-agent-memory-router/compare/v1.4.0...v1.5.0) (2025-09-05)
 
 
