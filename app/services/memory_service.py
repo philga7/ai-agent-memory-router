@@ -144,8 +144,7 @@ class MemoryService:
                 results=results,
                 total=len(filtered_memories),
                 query=search_query.query or "",
-                filters=search_query.filters,
-                search_time_ms=search_time,
+                execution_time=search_time / 1000.0,  # Convert to seconds
                 timestamp=datetime.utcnow()
             )
             
@@ -270,19 +269,20 @@ class MemoryService:
             ]
         
         # Filter by memory type
-        if search_query.filters.get("memory_type"):
-            memory_type = search_query.filters["memory_type"]
-            filtered = [m for m in filtered if m.memory_type == memory_type]
+        if search_query.memory_type:
+            filtered = [m for m in filtered if m.memory_type == search_query.memory_type]
         
         # Filter by agent
-        if search_query.filters.get("agent_id"):
-            agent_id = search_query.filters["agent_id"]
-            filtered = [m for m in filtered if m.source.agent_id == agent_id]
+        if search_query.agent_id:
+            filtered = [m for m in filtered if m.source.agent_id == search_query.agent_id]
         
-        # Filter by importance
-        if search_query.filters.get("min_importance"):
-            min_importance = search_query.filters["min_importance"]
-            filtered = [m for m in filtered if m.importance >= min_importance]
+        # Filter by tags
+        if search_query.tags:
+            required_tags = set(search_query.tags)
+            filtered = [
+                m for m in filtered 
+                if required_tags.issubset(set(m.content.tags if hasattr(m.content, 'tags') else []))
+            ]
         
         return filtered
     

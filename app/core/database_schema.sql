@@ -53,10 +53,13 @@ CREATE TABLE IF NOT EXISTS memory_metadata (
     id TEXT PRIMARY KEY,
     memory_id TEXT NOT NULL,
     tags TEXT, -- JSON array of tags
-    source TEXT, -- where the memory came from
+    source TEXT, -- where the memory came from (weaviate, sqlite, cipher, etc.)
     confidence REAL DEFAULT 1.0, -- confidence score 0.0-1.0
-    embedding_vector TEXT, -- base64 encoded vector for semantic search
+    embedding_vector TEXT, -- base64 encoded vector for semantic search (optional with Weaviate)
     vector_dimension INTEGER, -- dimension of the embedding vector
+    weaviate_object_id TEXT, -- Weaviate object ID for cross-reference
+    project_id TEXT, -- project ID for cross-project knowledge sharing
+    similarity_threshold REAL DEFAULT 0.7, -- similarity threshold used for this memory
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (memory_id) REFERENCES memory_items(id) ON DELETE CASCADE
@@ -66,6 +69,9 @@ CREATE TABLE IF NOT EXISTS memory_metadata (
 CREATE INDEX IF NOT EXISTS idx_memory_metadata_memory_id ON memory_metadata(memory_id);
 CREATE INDEX IF NOT EXISTS idx_memory_metadata_tags ON memory_metadata(tags);
 CREATE INDEX IF NOT EXISTS idx_memory_metadata_confidence ON memory_metadata(confidence);
+CREATE INDEX IF NOT EXISTS idx_memory_metadata_source ON memory_metadata(source);
+CREATE INDEX IF NOT EXISTS idx_memory_metadata_weaviate_object_id ON memory_metadata(weaviate_object_id);
+CREATE INDEX IF NOT EXISTS idx_memory_metadata_project_id ON memory_metadata(project_id);
 
 -- Memory routes table - stores routing decisions between agents
 CREATE TABLE IF NOT EXISTS memory_routes (
@@ -157,7 +163,10 @@ SELECT
     mm.source,
     mm.confidence,
     mm.embedding_vector,
-    mm.vector_dimension
+    mm.vector_dimension,
+    mm.weaviate_object_id,
+    mm.project_id,
+    mm.similarity_threshold
 FROM memory_items mi
 LEFT JOIN memory_metadata mm ON mi.id = mm.memory_id;
 

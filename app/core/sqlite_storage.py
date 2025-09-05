@@ -16,6 +16,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 import aiosqlite
 import uuid
+from uuid import UUID
 
 
 def safe_json_dumps(obj):
@@ -73,9 +74,7 @@ class SQLiteConnectionPool:
         
         # Pre-populate connection pool
         for _ in range(self.max_connections):
-            conn = await aiosqlite.connect(self.database_path)
-            await conn.execute("PRAGMA foreign_keys = ON")
-            await conn.execute("PRAGMA journal_mode = WAL")
+            conn = await self._create_new_connection()
             self._connections.put_nowait(conn)
         
         self._initialized = True
@@ -113,24 +112,112 @@ class SQLiteConnectionPool:
             await self.initialize()
         
         try:
-            conn = await asyncio.wait_for(self._connections.get(), timeout=5.0)
+            conn = await asyncio.wait_for(self._connections.get(), timeout=10.0)
+            
+            # Validate connection health
+            if not await self._validate_connection(conn):
+                logger.warning("Connection validation failed, creating new connection")
+                await conn.close()
+                conn = await self._create_new_connection()
+            
             return conn
         except asyncio.TimeoutError:
+            logger.error("Timeout waiting for database connection")
             raise ConnectionError("Timeout waiting for database connection")
+        except Exception as e:
+            logger.error(f"Error getting connection: {e}")
+            raise ConnectionError(f"Failed to get database connection: {e}")
     
+    async def _validate_connection(self, conn: aiosqlite.Connection) -> bool:
+        """Validate that a connection is healthy and ready to use."""
+        try:
+            # Test the connection with a simple query
+            await conn.execute("SELECT 1")
+            return True
+        except Exception as e:
+            logger.warning(f"Connection validation failed: {e}")
+            return False
+    
+    async def _create_new_connection(self) -> aiosqlite.Connection:
+        """Create a new database connection with proper configuration."""
+        conn = await aiosqlite.connect(self.database_path, timeout=30.0)
+        await conn.execute("PRAGMA foreign_keys = ON")
+        await conn.execute("PRAGMA journal_mode = WAL")
+        await conn.execute("PRAGMA synchronous = NORMAL")
+        await conn.execute("PRAGMA cache_size = 10000")
+        await conn.execute("PRAGMA temp_store = MEMORY")
+        await conn.execute("PRAGMA busy_timeout = 5000")  # 5 second timeout
+        await conn.execute("PRAGMA locking_mode = NORMAL")
+        await conn.execute("PRAGMA wal_autocheckpoint = 1000")
+        return conn
+
     async def return_connection(self, conn: aiosqlite.Connection):
         """Return a connection to the pool."""
         try:
-            self._connections.put_nowait(conn)
+            # Validate connection before returning to pool
+            if await self._validate_connection(conn):
+                self._connections.put_nowait(conn)
+            else:
+                logger.warning("Connection failed validation, closing instead of returning to pool")
+                await conn.close()
         except asyncio.QueueFull:
+            logger.warning("Connection pool full, closing connection")
+            await conn.close()
+        except Exception as e:
+            logger.error(f"Error returning connection to pool: {e}")
             await conn.close()
     
+    async def get_connection_with_retry(self, max_retries: int = 3) -> aiosqlite.Connection:
+        """Get a database connection with retry logic for handling temporary failures."""
+        for attempt in range(max_retries):
+            try:
+                return await self.get_connection()
+            except ConnectionError as e:
+                if attempt == max_retries - 1:
+                    logger.error(f"Failed to get connection after {max_retries} attempts: {e}")
+                    raise
+                else:
+                    logger.warning(f"Connection attempt {attempt + 1} failed, retrying: {e}")
+                    await asyncio.sleep(0.1 * (attempt + 1))  # Exponential backoff
+        raise ConnectionError("Failed to get connection after all retries")
+
+    async def execute_with_retry(self, operation, max_retries: int = 5):
+        """Execute a database operation with retry logic for handling locking issues."""
+        for attempt in range(max_retries):
+            try:
+                conn = await self.get_connection_with_retry()
+                try:
+                    result = await operation(conn)
+                    return result
+                finally:
+                    await self.return_connection(conn)
+            except Exception as e:
+                error_msg = str(e).lower()
+                if "database is locked" in error_msg or "sqlite_busy" in error_msg:
+                    if attempt == max_retries - 1:
+                        logger.error(f"Database operation failed after {max_retries} attempts due to locking: {e}")
+                        raise
+                    else:
+                        logger.warning(f"Database locked on attempt {attempt + 1}, retrying: {e}")
+                        # Shorter delays for faster retry
+                        await asyncio.sleep(0.05 * (attempt + 1))  # Faster exponential backoff
+                else:
+                    # Non-locking error, don't retry
+                    logger.error(f"Database operation failed with non-locking error: {e}")
+                    raise
+        raise ConnectionError("Failed to execute operation after all retries")
+
     async def close(self):
         """Close all connections in the pool."""
+        logger.info("Closing SQLite connection pool...")
         while not self._connections.empty():
-            conn = await self._connections.get()
-            await conn.close()
+            try:
+                conn = await self._connections.get()
+                await conn.close()
+            except Exception as e:
+                logger.error(f"Error closing connection: {e}")
         self._initialized = False
+        logger.info("SQLite connection pool closed")
 
 
 class SQLiteTransactionManager(TransactionManager):
@@ -143,19 +230,28 @@ class SQLiteTransactionManager(TransactionManager):
     @asynccontextmanager
     async def transaction(self):
         """Context manager for database transactions."""
-        conn = await self.connection_pool.get_connection()
+        conn = await self.connection_pool.get_connection_with_retry()
         self._current_connection = conn
         
         try:
-            await conn.execute("BEGIN TRANSACTION")
+            # Set transaction isolation level and begin transaction
+            await conn.execute("PRAGMA read_uncommitted = 0")  # Ensure read committed
+            await conn.execute("BEGIN IMMEDIATE TRANSACTION")  # Use IMMEDIATE for better locking
             yield self
             await conn.commit()
         except Exception as e:
-            await conn.rollback()
+            try:
+                await conn.rollback()
+            except Exception as rollback_error:
+                logger.error(f"Error during rollback: {rollback_error}")
             raise TransactionError(f"Transaction failed: {e}")
         finally:
-            await self.connection_pool.return_connection(conn)
-            self._current_connection = None
+            try:
+                await self.connection_pool.return_connection(conn)
+            except Exception as return_error:
+                logger.error(f"Error returning connection: {return_error}")
+            finally:
+                self._current_connection = None
     
     async def commit(self):
         """Commit the current transaction."""
@@ -203,16 +299,12 @@ class SQLiteMemoryStorage(MemoryStorage):
         self.connection_pool = connection_pool
     
     async def _execute_with_connection(self, operation):
-        """Execute a database operation with proper connection management."""
-        conn = await self.connection_pool.get_connection()
-        try:
-            return await operation(conn)
-        finally:
-            await self.connection_pool.return_connection(conn)
+        """Execute a database operation with proper connection management and retry logic."""
+        return await self.connection_pool.execute_with_retry(operation)
     
     async def _get_connection(self):
-        """Get a database connection."""
-        return await self.connection_pool.get_connection()
+        """Get a database connection with retry logic."""
+        return await self.connection_pool.get_connection_with_retry()
     
     async def _return_connection(self, conn):
         """Return a database connection."""
@@ -220,7 +312,9 @@ class SQLiteMemoryStorage(MemoryStorage):
     
     async def store_memory(self, memory: MemoryItem) -> str:
         """Store a memory item and return its ID."""
-        memory_id = str(uuid.uuid4())
+        # Use the memory ID that was passed in, don't generate a new one
+        # Convert UUID to string if needed
+        memory_id = str(memory.id)
         
         async def _store(conn):
             await conn.execute("""
@@ -257,7 +351,7 @@ class SQLiteMemoryStorage(MemoryStorage):
             return None
         
         return MemoryItem(
-            id=row[0],
+            id=UUID(row[0]),  # Convert string to UUID
             agent_id=row[1],
             content=row[2],
             memory_type=row[3],
@@ -301,7 +395,7 @@ class SQLiteMemoryStorage(MemoryStorage):
         memories = []
         for row in rows:
             memory = MemoryItem(
-                id=row[0],
+                id=UUID(row[0]),  # Convert string to UUID
                 agent_id=row[1],
                 content=row[2],
                 memory_type=row[3],
@@ -378,7 +472,7 @@ class SQLiteMemoryStorage(MemoryStorage):
         memories = []
         for row in rows:
             memory = MemoryItem(
-                id=row[0],
+                id=UUID(row[0]),  # Convert string to UUID
                 agent_id=row[1],
                 content=row[2],
                 memory_type=row[3],
@@ -406,8 +500,9 @@ class SQLiteMetadataStorage(MetadataStorage):
         try:
             await conn.execute("""
                 INSERT INTO memory_metadata (id, memory_id, tags, source, confidence, 
-                                          embedding_vector, vector_dimension)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                                          embedding_vector, vector_dimension, weaviate_object_id,
+                                          project_id, similarity_threshold)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 metadata_id,
                 metadata.memory_id,
@@ -415,7 +510,10 @@ class SQLiteMetadataStorage(MetadataStorage):
                 metadata.source,
                 metadata.confidence,
                 metadata.embedding_vector,
-                metadata.vector_dimension
+                metadata.vector_dimension,
+                getattr(metadata, 'weaviate_object_id', None),
+                getattr(metadata, 'project_id', None),
+                getattr(metadata, 'similarity_threshold', 0.7)
             ))
             await conn.commit()
         finally:
@@ -423,15 +521,18 @@ class SQLiteMetadataStorage(MetadataStorage):
         
         return metadata_id
     
-    async def get_metadata(self, memory_id: str) -> Optional[MemoryMetadata]:
+    async def get_metadata(self, memory_id: Union[str, UUID]) -> Optional[MemoryMetadata]:
         """Retrieve metadata for a memory."""
+        # Convert UUID to string if needed
+        memory_id_str = str(memory_id)
+        
         conn = await self.connection_pool.get_connection()
         try:
             async with conn.execute("""
                 SELECT id, memory_id, tags, source, confidence, embedding_vector, vector_dimension,
-                       created_at, updated_at
+                       weaviate_object_id, project_id, similarity_threshold, created_at, updated_at
                 FROM memory_metadata WHERE memory_id = ?
-            """, (memory_id,)) as cursor:
+            """, (memory_id_str,)) as cursor:
                 row = await cursor.fetchone()
         finally:
             await self.connection_pool.return_connection(conn)
@@ -439,28 +540,42 @@ class SQLiteMetadataStorage(MetadataStorage):
         if not row:
             return None
         
-        return MemoryMetadata(
-            id=row[0],
-            memory_id=row[1],
+        metadata = MemoryMetadata(
+            id=UUID(row[0]),  # Convert string to UUID for metadata ID
+            memory_id=row[1],  # This is the memory ID (string)
             tags=json.loads(row[2]) if row[2] else [],
             source=row[3],
             confidence=row[4],
             embedding_vector=row[5],
             vector_dimension=row[6],
-            created_at=datetime.fromisoformat(row[7]) if row[7] else None,
-            updated_at=datetime.fromisoformat(row[8]) if row[8] else None
+            created_at=datetime.fromisoformat(row[10]) if row[10] else None,
+            updated_at=datetime.fromisoformat(row[11]) if row[11] else None
         )
+        
+        # Add Weaviate-specific fields if they exist
+        if hasattr(metadata, 'weaviate_object_id'):
+            metadata.weaviate_object_id = row[7]
+        if hasattr(metadata, 'project_id'):
+            metadata.project_id = row[8]
+        if hasattr(metadata, 'similarity_threshold'):
+            metadata.similarity_threshold = row[9]
+        
+        return metadata
     
-    async def update_metadata(self, memory_id: str, updates: Dict[str, Any]) -> bool:
+    async def update_metadata(self, memory_id: Union[str, UUID], updates: Dict[str, Any]) -> bool:
         """Update memory metadata."""
         if not updates:
             return True
+        
+        # Convert UUID to string if needed
+        memory_id_str = str(memory_id)
         
         set_clauses = []
         params = []
         
         for key, value in updates.items():
-            if key in ['tags', 'source', 'confidence', 'embedding_vector', 'vector_dimension']:
+            if key in ['tags', 'source', 'confidence', 'embedding_vector', 'vector_dimension',
+                      'weaviate_object_id', 'project_id', 'similarity_threshold']:
                 if key == 'tags':
                     value = json.dumps(value) if value else None
                 set_clauses.append(f"{key} = ?")
@@ -470,7 +585,7 @@ class SQLiteMetadataStorage(MetadataStorage):
             return True
         
         sql = f"UPDATE memory_metadata SET {', '.join(set_clauses)} WHERE memory_id = ?"
-        params.append(memory_id)
+        params.append(memory_id_str)
         
         conn = await self.connection_pool.get_connection()
         try:
@@ -481,11 +596,14 @@ class SQLiteMetadataStorage(MetadataStorage):
         
         return True
     
-    async def delete_metadata(self, memory_id: str) -> bool:
+    async def delete_metadata(self, memory_id: Union[str, UUID]) -> bool:
         """Delete memory metadata."""
+        # Convert UUID to string if needed
+        memory_id_str = str(memory_id)
+        
         conn = await self.connection_pool.get_connection()
         try:
-            await conn.execute("DELETE FROM memory_metadata WHERE memory_id = ?", (memory_id,))
+            await conn.execute("DELETE FROM memory_metadata WHERE memory_id = ?", (memory_id_str,))
             await conn.commit()
         finally:
             await self.connection_pool.return_connection(conn)
@@ -705,9 +823,10 @@ class SQLiteAgentStorage(AgentStorage):
     def __init__(self, connection_pool: SQLiteConnectionPool):
         self.connection_pool = connection_pool
     
-    async def store_agent(self, agent: Agent) -> str:
+    async def store_agent(self, agent) -> str:
         """Store an agent."""
-        agent_id = str(uuid.uuid4())
+        # Use the agent's provided ID instead of generating a new one
+        agent_id = str(agent.id)  # Convert to string to handle both UUID and string IDs
         
         conn = await self.connection_pool.get_connection()
         try:
@@ -720,9 +839,9 @@ class SQLiteAgentStorage(AgentStorage):
                 agent.description,
                 agent.agent_type,
                 agent.version,
-                safe_json_dumps(agent.capabilities.model_dump()) if agent.capabilities else None,
-                safe_json_dumps(agent.status.model_dump()) if agent.status else None,
-                safe_json_dumps(agent.metadata) if agent.metadata else None
+                safe_json_dumps(agent.capabilities.model_dump()) if hasattr(agent, 'capabilities') and agent.capabilities else None,
+                safe_json_dumps(agent.status.model_dump()) if hasattr(agent, 'status') and agent.status else None,
+                safe_json_dumps(agent.metadata) if hasattr(agent, 'metadata') and agent.metadata else None
             ))
             await conn.commit()
         finally:
@@ -755,8 +874,18 @@ class SQLiteAgentStorage(AgentStorage):
         capabilities = AgentCapabilities(**capabilities_data) if capabilities_data else None
         status = AgentStatus(**status_data) if status_data else None
         
+        # Create Agent object with string ID (avoiding UUID validation)
+        from app.models.agent import Agent
+        from uuid import UUID
+        
+        # Try to parse as UUID, but fall back to string if it fails
+        try:
+            agent_id = UUID(row[0])
+        except (ValueError, TypeError):
+            agent_id = row[0]  # Use as string if not a valid UUID
+        
         return Agent(
-            id=row[0],
+            id=agent_id,
             name=row[1],
             description=row[2],
             agent_type=row[3],
@@ -768,6 +897,88 @@ class SQLiteAgentStorage(AgentStorage):
             updated_at=datetime.fromisoformat(row[9]) if row[9] else None
         )
     
+    async def create_agent_if_not_exists(self, agent_id: str, agent_name: Optional[str] = None, 
+                                       agent_type: str = "assistant", version: str = "1.0.0") -> bool:
+        """Create an agent with default values if it doesn't exist.
+        
+        Args:
+            agent_id: The agent identifier
+            agent_name: Optional agent name (defaults to "Agent-{agent_id[:8]}")
+            agent_type: Agent type (defaults to "assistant")
+            version: Agent version (defaults to "1.0.0")
+            
+        Returns:
+            bool: True if agent was created or already exists, False if creation failed
+        """
+        try:
+            # Check if agent already exists using direct SQL query
+            conn = await self.connection_pool.get_connection_with_retry()
+            try:
+                async with conn.execute("SELECT id FROM agents WHERE id = ?", (agent_id,)) as cursor:
+                    existing = await cursor.fetchone()
+                    if existing:
+                        logger.debug(f"Agent {agent_id} already exists")
+                        return True
+            finally:
+                await self.connection_pool.return_connection(conn)
+            
+            # Create agent with default values
+            default_name = agent_name or f"Agent-{agent_id[:8]}"
+            default_description = f"Auto-created agent for {agent_id}"
+            
+            # Default capabilities
+            default_capabilities = {
+                "reasoning": True,
+                "memory": True,
+                "learning": True,
+                "communication": True,
+                "tool_use": True,
+                "planning": True,
+                "creativity": True,
+                "problem_solving": True
+            }
+            
+            # Default status
+            default_status = {
+                "status": "online",
+                "last_heartbeat": datetime.now().isoformat(),
+                "uptime": 0.0,
+                "error_count": 0,
+                "performance_metrics": {}
+            }
+            
+            # Default metadata
+            default_metadata = {
+                "auto_created": True,
+                "created_for_memory": True
+            }
+            
+            # Insert agent record directly using SQL to avoid Pydantic validation issues
+            conn = await self.connection_pool.get_connection_with_retry()
+            try:
+                await conn.execute("""
+                    INSERT INTO agents (id, name, description, agent_type, version, capabilities, status, metadata)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    agent_id,
+                    default_name,
+                    default_description,
+                    agent_type,
+                    version,
+                    safe_json_dumps(default_capabilities),
+                    safe_json_dumps(default_status),
+                    safe_json_dumps(default_metadata)
+                ))
+                await conn.commit()
+                logger.info(f"Created agent {agent_id} with default values")
+                return True
+            finally:
+                await self.connection_pool.return_connection(conn)
+                
+        except Exception as e:
+            logger.error(f"Failed to create agent {agent_id}: {e}")
+            return False
+
     async def update_agent(self, agent_id: str, updates: Dict[str, Any]) -> bool:
         """Update an agent."""
         if not updates:
