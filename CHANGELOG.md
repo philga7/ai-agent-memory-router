@@ -1,3 +1,10 @@
+# [1.7.0](https://github.com/philga7/ai-agent-memory-router/compare/v1.6.0...v1.7.0) (2025-09-09)
+
+
+### Features
+
+* **testing:** implement comprehensive testing framework with 235 tests ([#8](https://github.com/philga7/ai-agent-memory-router/issues/8)) ([433bd20](https://github.com/philga7/ai-agent-memory-router/commit/433bd2007dd855a815d21f68900eac71f68d2d68))
+
 # [1.6.0](https://github.com/philga7/ai-agent-memory-router/compare/v1.5.0...v1.6.0) (2025-09-05)
 
 
