@@ -8,6 +8,7 @@ This client demonstrates how to use the Universal API endpoints.
 import requests
 import json
 import time
+import pytest
 from typing import Dict, Any
 
 # API Configuration
@@ -22,6 +23,7 @@ HEADERS = {
 }
 
 
+@pytest.mark.e2e
 def test_api_status():
     """Test the API status endpoint."""
     print("🔍 Testing API Status...")
@@ -47,6 +49,7 @@ def test_api_status():
     return True
 
 
+@pytest.mark.e2e
 def test_store_memory():
     """Test storing a memory."""
     print("\n💾 Testing Memory Storage...")
@@ -87,6 +90,7 @@ def test_store_memory():
         return None
 
 
+@pytest.mark.e2e
 def test_retrieve_memories():
     """Test retrieving memories."""
     print("\n📖 Testing Memory Retrieval...")
@@ -133,6 +137,7 @@ def test_retrieve_memories():
         print(f"❌ Memory retrieval test failed: {e}")
 
 
+@pytest.mark.e2e
 def test_search_memories():
     """Test searching memories."""
     print("\n🔍 Testing Memory Search...")
@@ -182,6 +187,7 @@ def test_search_memories():
         print(f"❌ Memory search test failed: {e}")
 
 
+@pytest.mark.e2e
 def test_batch_operations():
     """Test batch memory operations."""
     print("\n📦 Testing Batch Operations...")
@@ -242,6 +248,7 @@ def test_batch_operations():
         print(f"❌ Batch operation test failed: {e}")
 
 
+@pytest.mark.e2e
 def test_error_handling():
     """Test error handling."""
     print("\n⚠️ Testing Error Handling...")

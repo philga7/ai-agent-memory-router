@@ -1,359 +1,508 @@
-# Testing Guide for Intelligent Memory Routing Engine
+# AI Agent Memory Router - Testing Guide
 
-This guide explains how to test the Intelligent Memory Routing Engine to ensure it's working correctly.
+This comprehensive testing guide covers all aspects of testing the AI Agent Memory Router, including unit tests, integration tests, end-to-end tests, and quality assurance practices.
 
-## 🧪 **Testing Overview**
+## Table of Contents
 
-The routing system includes comprehensive testing at multiple levels:
-- **Unit Tests**: Individual component testing
-- **Integration Tests**: End-to-end system testing
-- **Performance Tests**: Load and performance validation
-- **Demo Scripts**: Interactive demonstrations
+- [Overview](#overview)
+- [Test Structure](#test-structure)
+- [Running Tests](#running-tests)
+- [Test Categories](#test-categories)
+- [Coverage Requirements](#coverage-requirements)
+- [Quality Gates](#quality-gates)
+- [Continuous Integration](#continuous-integration)
+- [Troubleshooting](#troubleshooting)
+- [Best Practices](#best-practices)
 
-## 📋 **Prerequisites**
+## Overview
 
-1. **Python Environment**: Ensure you have Python 3.8+ installed
-2. **Dependencies**: Install required packages
-3. **Database**: SQLite database will be created automatically for testing
+The AI Agent Memory Router uses a comprehensive testing strategy that includes:
 
-## 🚀 **Quick Start Testing**
+- **Unit Tests**: Test individual components in isolation
+- **Integration Tests**: Test component interactions and API endpoints
+- **End-to-End Tests**: Test complete workflows and user scenarios
+- **Performance Tests**: Test system performance under various loads
+- **Security Tests**: Test security features and vulnerability protection
+- **Smoke Tests**: Quick tests for basic functionality verification
 
-### Option 1: Run Basic Tests (Recommended for first-time testing)
+## Test Structure
 
-```bash
-# Run the basic test suite
-python run_routing_tests.py
+```
+tests/
+├── unit/                    # Unit tests
+│   ├── test_config.py      # Configuration tests
+│   ├── test_fixtures.py    # Fixture tests
+│   └── test_logging.py     # Logging tests
+├── integration/            # Integration tests
+│   ├── test_memory_api.py  # Memory API tests
+│   ├── test_agents_api.py  # Agents API tests
+│   ├── test_health_api.py  # Health API tests
+│   └── test_context_api.py # Context API tests
+├── e2e/                    # End-to-end tests
+│   └── test_complete_workflows.py # Complete workflow tests
+├── fixtures/               # Test fixtures and utilities
+│   ├── database.py         # Database fixtures
+│   ├── mocks.py           # Mock fixtures
+│   └── data.py            # Test data fixtures
+└── utils/                  # Test utilities
+    ├── config.py          # Test configuration
+    ├── database.py        # Database utilities
+    └── helpers.py         # Test helpers
 ```
 
-This will run a comprehensive test suite that validates:
-- Content classification accuracy
-- Routing decision logic
-- Service integration
-- Performance benchmarks
+## Running Tests
 
-### Option 2: Interactive Demo
+### Quick Start
 
 ```bash
-# Run the interactive demo
-python demo_routing_system.py
+# Run all tests with coverage
+python run_tests.py --all
+
+# Run specific test categories
+python run_tests.py --unit
+python run_tests.py --integration
+python run_tests.py --e2e
+
+# Run with verbose output
+python run_tests.py --all --verbose
 ```
 
-This provides a visual demonstration of the routing system in action.
-
-### Option 3: Full Test Suite with pytest
+### Using pytest directly
 
 ```bash
-# Install test dependencies
-pip install -r requirements-test.txt
-
 # Run all tests
-pytest test_routing_engine.py -v
+pytest
+
+# Run specific test categories
+pytest -m unit
+pytest -m integration
+pytest -m e2e
 
 # Run with coverage
-pytest test_routing_engine.py --cov=app --cov-report=html
+pytest --cov=app --cov-report=html
+
+# Run specific test files
+pytest tests/unit/test_config.py
+pytest tests/integration/test_memory_api.py
 ```
 
-## 🔍 **Test Categories**
+### Test Runner Options
 
-### 1. Content Classification Tests
-
-Tests the ability to correctly classify different types of content:
-
-```python
-# Example test content
-conversation = "Hi there! How are you doing today?"
-code = "def hello(): print('Hello, World!')"
-knowledge = "Machine learning is a subset of AI..."
-```
-
-**What to expect:**
-- Conversation content → High confidence classification as "conversation"
-- Code content → High confidence classification as "code"
-- Knowledge content → High confidence classification as "knowledge"
-
-### 2. Routing Decision Tests
-
-Tests the intelligent routing decisions:
-
-```python
-# Test scenarios
-- High-priority conversation → Should route to Cipher or SQLite
-- Code content → Should route to SQLite for fast access
-- Large documents → Should route to Weaviate for distributed storage
-- Critical content → Should route to SQLite for reliability
-```
-
-**What to expect:**
-- Decisions should be made within 100ms
-- Confidence scores should be > 0.5 for clear content types
-- Reasons should be meaningful and explain the decision
-
-### 3. Batch Processing Tests
-
-Tests the ability to process multiple routing requests:
-
-```python
-# Batch of 10 requests
-- Should process in parallel
-- Success rate should be > 80%
-- Total processing time should be < 5 seconds
-```
-
-**What to expect:**
-- Parallel processing should be faster than sequential
-- Error handling should be graceful
-- All requests should be processed
-
-### 4. Performance Tests
-
-Tests system performance under load:
-
-```python
-# Performance benchmarks
-- Single request: < 100ms
-- Batch of 10 requests: < 5 seconds
-- Memory usage: < 100MB
-- Database operations: < 50ms
-```
-
-## 📊 **Expected Test Results**
-
-### Successful Test Run Output
-
-```
-🧪 Running Basic Routing Engine Tests...
-
-Testing Content Classifier...
-✓ Content classified as: conversation (confidence: 0.85)
-
-Testing Routing Engine...
-✓ Routing decision: cipher (confidence: 0.78)
-✓ Reason: Conversational content optimized for Cipher
-✓ Processing time: 0.045s
-
-Testing Routing Service...
-✓ Single routing successful: cipher
-✓ Batch routing successful: 100.0% success rate
-✓ System health: healthy
-
-Testing Performance...
-✓ Performance test passed
-
-🎉 All tests passed! The routing system is working correctly.
-```
-
-### Health Check Results
-
-```
-System Health Check:
-  Status: HEALTHY
-  Policies: 3
-  Cache Status: {'cache_size': 5, 'cache_keys': [...]}
-  Issues: []
-  Recommendations: ['System is operating normally']
-```
-
-## 🐛 **Troubleshooting Common Issues**
-
-### Issue 1: Import Errors
-
-**Error**: `ModuleNotFoundError: No module named 'app'`
-
-**Solution**:
-```bash
-# Ensure you're in the project root directory
-cd /path/to/ai-agent-memory-router
-
-# Add the app directory to Python path
-export PYTHONPATH="${PYTHONPATH}:$(pwd)/app"
-```
-
-### Issue 2: Database Connection Errors
-
-**Error**: `ConnectionError: Failed to get database connection`
-
-**Solution**:
-```bash
-# Check if SQLite is available
-python -c "import sqlite3; print('SQLite available')"
-
-# Ensure write permissions in the project directory
-ls -la data/
-```
-
-### Issue 3: Performance Issues
-
-**Error**: Tests are running slowly
-
-**Solution**:
-```bash
-# Check system resources
-top -l 1 | grep Python
-
-# Run tests with reduced load
-python run_routing_tests.py --light
-```
-
-### Issue 4: Memory Issues
-
-**Error**: `MemoryError` or high memory usage
-
-**Solution**:
-```bash
-# Monitor memory usage
-python -c "import psutil; print(f'Memory: {psutil.virtual_memory().percent}%')"
-
-# Reduce batch sizes in tests
-# Edit test_routing_engine.py and reduce batch sizes
-```
-
-## 📈 **Performance Benchmarks**
-
-### Expected Performance Metrics
-
-| Metric | Target | Acceptable |
-|--------|--------|------------|
-| Single Request Latency | < 50ms | < 100ms |
-| Batch Processing (10 items) | < 2s | < 5s |
-| Memory Usage | < 50MB | < 100MB |
-| Database Query Time | < 10ms | < 50ms |
-| Cache Hit Rate | > 80% | > 60% |
-
-### Load Testing
+The `run_tests.py` script provides comprehensive test execution options:
 
 ```bash
-# Run load test with 100 requests
-python -c "
-import asyncio
-from test_routing_engine import test_performance_under_load
-asyncio.run(test_performance_under_load())
-"
+# Test categories
+--unit              # Unit tests
+--integration       # Integration tests
+--e2e              # End-to-end tests
+--fast             # Fast tests only
+--smoke            # Smoke tests
+--api              # API tests
+--performance      # Performance tests
+--security         # Security tests
+
+# Coverage options
+--coverage         # Generate coverage report
+--no-cov           # Disable coverage collection
+
+# Output options
+--verbose, -v      # Verbose output
+--clean            # Clean up old reports
+
+# Code quality
+--lint             # Run code linting
+--format           # Format code
+--type-check       # Run type checking
+--security-scan    # Run security scan
 ```
 
-## 🔧 **Advanced Testing**
+## Test Categories
 
-### Custom Test Scenarios
+### Unit Tests
 
-Create custom test scenarios by modifying the test files:
+Unit tests test individual components in isolation using mocks and fixtures.
 
-```python
-# Add to test_routing_engine.py
-async def test_custom_scenario():
-    """Test a custom routing scenario."""
-    context = RoutingContext(
-        agent_id="custom-agent",
-        project_id="custom-project",
-        memory_type="custom",
-        content="Your custom content here",
-        priority=3,
-        tags=["custom", "test"],
-        metadata={"custom": True},
-        source="custom-test",
-        timestamp=datetime.utcnow()
-    )
-    
-    decision = await routing_engine.make_routing_decision(context)
-    assert decision.confidence > 0.5
-```
+**Location**: `tests/unit/`
 
-### Stress Testing
+**Examples**:
+- Configuration validation
+- Logging functionality
+- Utility functions
+- Model validation
 
+**Running**:
 ```bash
-# Run stress test
-python -c "
-import asyncio
-import time
-from test_routing_engine import TestRoutingService
-
-async def stress_test():
-    # Create 1000 requests
-    requests = []
-    for i in range(1000):
-        # Create request...
-        pass
-    
-    start_time = time.time()
-    # Process requests
-    end_time = time.time()
-    
-    print(f'Processed 1000 requests in {end_time - start_time:.2f}s')
-
-asyncio.run(stress_test())
-"
+python run_tests.py --unit
+pytest -m unit
 ```
 
-## 📝 **Test Reports**
+### Integration Tests
+
+Integration tests test component interactions and API endpoints with real database operations.
+
+**Location**: `tests/integration/`
+
+**Examples**:
+- Memory API endpoints
+- Agent management API
+- Health monitoring API
+- Context management API
+- Cipher integration
+
+**Running**:
+```bash
+python run_tests.py --integration
+pytest -m integration
+```
+
+### End-to-End Tests
+
+End-to-end tests test complete workflows and user scenarios.
+
+**Location**: `tests/e2e/`
+
+**Examples**:
+- Agent onboarding workflow
+- Memory routing workflow
+- Multi-agent collaboration
+- System health monitoring
+- Error handling and recovery
+
+**Running**:
+```bash
+python run_tests.py --e2e
+pytest -m e2e
+```
+
+### Performance Tests
+
+Performance tests verify system performance under various loads.
+
+**Markers**: `@pytest.mark.performance`
+
+**Examples**:
+- API response times
+- Memory usage
+- Concurrent request handling
+- Database performance
+
+**Running**:
+```bash
+python run_tests.py --performance
+pytest -m performance
+```
+
+### Security Tests
+
+Security tests verify security features and vulnerability protection.
+
+**Markers**: `@pytest.mark.security`
+
+**Examples**:
+- SQL injection protection
+- XSS protection
+- Input validation
+- Authentication and authorization
+
+**Running**:
+```bash
+python run_tests.py --security
+pytest -m security
+```
+
+### Smoke Tests
+
+Smoke tests provide quick verification of basic functionality.
+
+**Markers**: `@pytest.mark.smoke`
+
+**Examples**:
+- Basic health checks
+- Simple API calls
+- Database connectivity
+- Service startup
+
+**Running**:
+```bash
+python run_tests.py --smoke
+pytest -m smoke
+```
+
+## Coverage Requirements
+
+### Minimum Coverage Thresholds
+
+- **Overall Coverage**: 80%
+- **Critical Components**: 90%
+- **API Endpoints**: 85%
+- **Business Logic**: 90%
 
 ### Coverage Reports
 
+Coverage reports are generated in multiple formats:
+
+- **Terminal**: `--cov-report=term-missing`
+- **HTML**: `--cov-report=html:htmlcov`
+- **XML**: `--cov-report=xml:coverage.xml`
+- **JUnit**: `--cov-report=junit:junit.xml`
+
+### Viewing Coverage Reports
+
 ```bash
 # Generate HTML coverage report
-pytest --cov=app --cov-report=html
+python run_tests.py --coverage
 
-# View report
+# Open HTML report
 open htmlcov/index.html
 ```
 
-### Performance Reports
+## Quality Gates
+
+### Pre-commit Checks
+
+Before committing code, ensure all quality gates pass:
 
 ```bash
-# Generate performance report
-python run_routing_tests.py --report
+# Run all quality checks
+python run_tests.py --lint --format --type-check --security-scan
 
-# View performance metrics
-cat performance_report.json
+# Run tests with coverage
+python run_tests.py --all --coverage
 ```
 
-## 🎯 **Validation Checklist**
+### Quality Gate Requirements
 
-Before considering the system production-ready, ensure:
+1. **Code Coverage**: ≥ 80%
+2. **Linting**: No flake8 errors
+3. **Type Checking**: No mypy errors
+4. **Security Scan**: No high/critical vulnerabilities
+5. **All Tests**: Must pass
+6. **Performance**: Response times within limits
 
-- [ ] All unit tests pass
-- [ ] Integration tests pass
-- [ ] Performance benchmarks are met
-- [ ] Health checks return "healthy"
-- [ ] No memory leaks detected
-- [ ] Database operations are fast
-- [ ] Error handling is graceful
-- [ ] Logging is comprehensive
-- [ ] Documentation is complete
+### Continuous Integration
 
-## 🚨 **When Tests Fail**
+The CI/CD pipeline runs the following checks:
 
-If tests fail, follow this debugging process:
+```yaml
+# Example CI configuration
+test:
+  script:
+    - python run_tests.py --all --coverage
+    - python run_tests.py --lint
+    - python run_tests.py --type-check
+    - python run_tests.py --security-scan
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+```
 
-1. **Check the error message** - Look for specific error details
-2. **Review the logs** - Check for additional context
-3. **Verify dependencies** - Ensure all packages are installed
-4. **Check system resources** - Verify memory and CPU availability
-5. **Run individual tests** - Isolate the failing component
-6. **Check database state** - Ensure SQLite database is accessible
-7. **Review configuration** - Verify all settings are correct
+## Continuous Integration
 
-## 📞 **Getting Help**
+### GitHub Actions
 
-If you encounter issues:
+```yaml
+name: Tests
 
-1. **Check the logs** in the `logs/` directory
-2. **Review the error messages** carefully
-3. **Run tests individually** to isolate issues
-4. **Check system requirements** and dependencies
-5. **Verify file permissions** and paths
+on: [push, pull_request]
 
-## 🎉 **Success Criteria**
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.11, 3.12]
+    
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+    
+    - name: Run tests
+      run: python run_tests.py --all --coverage
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+```
 
-The routing system is working correctly when:
+### Local Development
 
-- ✅ All tests pass consistently
-- ✅ Performance benchmarks are met
-- ✅ Health checks return "healthy"
-- ✅ No errors in logs
-- ✅ Memory usage is stable
-- ✅ Database operations are fast
-- ✅ Routing decisions are logical and consistent
+For local development, use the test runner with appropriate options:
 
----
+```bash
+# Quick development cycle
+python run_tests.py --fast --verbose
 
-**Happy Testing!** 🧪
+# Full test suite before commit
+python run_tests.py --all --coverage --lint
 
-The Intelligent Memory Routing Engine is designed to be robust and reliable. These tests ensure it meets production standards and performs optimally under various conditions.
+# Debug specific test
+pytest tests/integration/test_memory_api.py::TestMemoryRoutingAPI::test_route_memory_success -v
+```
+
+## Troubleshooting
+
+### Common Issues
+
+#### Test Database Issues
+
+```bash
+# Clean test database
+rm -f data/test_*.db
+
+# Recreate test database
+python -c "from tests.fixtures.database import create_test_database; create_test_database()"
+```
+
+#### Import Errors
+
+```bash
+# Ensure PYTHONPATH is set
+export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+
+# Or run with module flag
+python -m pytest tests/
+```
+
+#### Coverage Issues
+
+```bash
+# Clean coverage data
+rm -f .coverage coverage*.xml
+
+# Regenerate coverage
+python run_tests.py --coverage
+```
+
+#### Performance Test Failures
+
+```bash
+# Run performance tests with more time
+pytest -m performance --timeout=600
+
+# Check system resources
+python run_tests.py --performance --verbose
+```
+
+### Debug Mode
+
+Enable debug mode for detailed test output:
+
+```bash
+# Set debug environment
+export DEBUG=1
+export LOG_LEVEL=DEBUG
+
+# Run tests with debug output
+python run_tests.py --all --verbose
+```
+
+### Test Isolation
+
+Ensure tests run in isolation:
+
+```bash
+# Run tests in random order
+pytest --random-order
+
+# Run tests with fresh database
+pytest --create-db
+```
+
+## Best Practices
+
+### Writing Tests
+
+1. **Test Naming**: Use descriptive test names that explain the scenario
+2. **Arrange-Act-Assert**: Structure tests with clear sections
+3. **One Assertion**: Each test should verify one specific behavior
+4. **Independent Tests**: Tests should not depend on each other
+5. **Mock External Dependencies**: Use mocks for external services
+
+### Test Data
+
+1. **Use Fixtures**: Leverage pytest fixtures for test data
+2. **Realistic Data**: Use realistic test data that matches production
+3. **Edge Cases**: Test boundary conditions and edge cases
+4. **Clean Up**: Ensure tests clean up after themselves
+
+### Performance Testing
+
+1. **Baseline Metrics**: Establish performance baselines
+2. **Load Testing**: Test under various load conditions
+3. **Resource Monitoring**: Monitor memory and CPU usage
+4. **Timeout Handling**: Set appropriate timeouts for tests
+
+### Security Testing
+
+1. **Input Validation**: Test all input validation
+2. **Authentication**: Test authentication and authorization
+3. **Injection Attacks**: Test for SQL injection, XSS, etc.
+4. **Data Protection**: Test data encryption and protection
+
+### Maintenance
+
+1. **Regular Updates**: Keep test dependencies updated
+2. **Test Review**: Review tests during code reviews
+3. **Refactoring**: Refactor tests when code changes
+4. **Documentation**: Keep test documentation updated
+
+## Test Configuration
+
+### Environment Variables
+
+```bash
+# Test environment
+export TESTING=true
+export DATABASE_URL=sqlite:///data/test_ai_agent_memory.db
+export LOG_LEVEL=WARNING
+
+# Coverage
+export COVERAGE_PROCESS_START=.coveragerc
+
+# Performance
+export PERFORMANCE_TEST_TIMEOUT=300
+```
+
+### Configuration Files
+
+- **pytest.ini**: Pytest configuration
+- **.coveragerc**: Coverage configuration
+- **conftest.py**: Test fixtures and configuration
+- **run_tests.py**: Test runner script
+
+## Reporting
+
+### Test Reports
+
+Test reports are generated in multiple formats:
+
+- **JUnit XML**: For CI/CD integration
+- **HTML**: For human-readable reports
+- **Coverage**: For code coverage analysis
+- **Performance**: For performance metrics
+
+### Metrics
+
+Key metrics tracked:
+
+- **Test Coverage**: Code coverage percentage
+- **Test Duration**: Time to run tests
+- **Test Success Rate**: Percentage of passing tests
+- **Performance Metrics**: Response times and throughput
+- **Security Issues**: Number of security vulnerabilities
+
+## Conclusion
+
+This testing guide provides comprehensive coverage of the AI Agent Memory Router testing strategy. Follow these guidelines to ensure high-quality, reliable, and maintainable tests that support the development and deployment of the system.
+
+For questions or issues, refer to the troubleshooting section or contact the development team.

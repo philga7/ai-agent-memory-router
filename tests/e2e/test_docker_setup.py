@@ -9,8 +9,10 @@ import aiohttp
 import redis
 import sqlite3
 import os
+import pytest
 from pathlib import Path
 
+@pytest.mark.e2e
 async def test_api_health():
     """Test if the API service is responding."""
     try:
@@ -26,6 +28,7 @@ async def test_api_health():
         print(f"❌ API health check error: {e}")
         return False
 
+@pytest.mark.e2e
 def test_redis_connection():
     """Test Redis connection."""
     try:
@@ -37,6 +40,7 @@ def test_redis_connection():
         print(f"❌ Redis connection failed: {e}")
         return False
 
+@pytest.mark.e2e
 def test_sqlite_database():
     """Test SQLite database access."""
     try:
@@ -60,6 +64,7 @@ def test_sqlite_database():
         print(f"❌ SQLite test failed: {e}")
         return False
 
+@pytest.mark.e2e
 async def test_mcp_server():
     """Test MCP server if it's running."""
     try:

@@ -1,0 +1,86 @@
+[run]
+# Coverage configuration for AI Agent Memory Router
+source = app
+omit = 
+    */tests/*
+    */test_*
+    */__pycache__/*
+    */migrations/*
+    */venv/*
+    */env/*
+    app/main.py
+    app/core/mcp_server.py
+    app/core/weaviate_client.py
+    app/core/cipher_client.py
+
+# Include all Python files in the app directory
+include = app/*.py app/*/*.py app/*/*/*.py
+
+# Branch coverage
+branch = True
+
+# Data file location
+data_file = .coverage
+
+[report]
+# Coverage report configuration
+exclude_lines =
+    # Have to re-enable the standard pragma
+    pragma: no cover
+
+    # Don't complain about missing debug-only code:
+    def __repr__
+    if self\.debug
+
+    # Don't complain if tests don't hit defensive assertion code:
+    raise AssertionError
+    raise NotImplementedError
+
+    # Don't complain if non-runnable code isn't run:
+    if 0:
+    if __name__ == .__main__.:
+
+    # Don't complain about abstract methods
+    @(abc\.)?abstractmethod
+
+    # Don't complain about type checking
+    if TYPE_CHECKING:
+
+    # Don't complain about test fixtures and utilities
+    def test_
+    class Test
+    @pytest.fixture
+    @pytest.mark
+
+    # Don't complain about mock implementations
+    # Mock implementation
+    # TODO: Implement
+
+# Minimum coverage thresholds
+fail_under = 80
+
+# Show missing lines
+show_missing = True
+
+# Skip covered files in report
+skip_covered = False
+
+# Sort by coverage percentage
+sort = Cover
+
+# Precision for coverage percentages
+precision = 2
+
+[html]
+# HTML report configuration
+directory = htmlcov
+title = AI Agent Memory Router Coverage Report
+show_contexts = True
+
+[xml]
+# XML report configuration
+output = coverage.xml
+
+[junit]
+# JUnit XML report configuration
+output = junit.xml
