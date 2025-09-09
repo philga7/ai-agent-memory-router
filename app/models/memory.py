@@ -182,6 +182,7 @@ class MemoryStoreCreate(BaseModel):
     memory_type: str = Field(..., description="Memory type")
     importance: int = Field(default=5, ge=1, le=10, description="Memory importance")
     expiration: Optional[datetime] = Field(None, description="Memory expiration timestamp")
+    access_control: Optional[Dict[str, List[str]]] = Field(default_factory=dict, description="Access control rules")
 
 
 class MemoryStoreResponse(BaseModel):

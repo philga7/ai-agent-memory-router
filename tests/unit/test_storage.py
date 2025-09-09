@@ -9,6 +9,7 @@ layer and SQLite implementation.
 import asyncio
 import tempfile
 import os
+import pytest
 from pathlib import Path
 import uuid
 from datetime import datetime
@@ -23,6 +24,8 @@ from app.models.agent import Agent, AgentCapabilities, AgentStatus
 from app.models.context import ConversationContext, SimpleContext
 
 
+@pytest.mark.unit
+@pytest.mark.asyncio
 async def test_storage_layer():
     """Test the storage layer functionality."""
     print("🧪 Testing SQLite Storage Layer")

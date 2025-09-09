@@ -9,6 +9,7 @@ client connection, memory operations, and hybrid storage.
 import asyncio
 import sys
 import os
+import pytest
 from pathlib import Path
 
 # Add the app directory to the Python path
@@ -20,6 +21,7 @@ from app.core.sqlite_storage import SQLiteUnifiedStorage
 from app.core.config import get_settings
 
 
+@pytest.mark.integration
 async def test_cipher_client():
     """Test Cipher MCP client functionality."""
     print("🔧 Testing Cipher API Client...")
@@ -93,6 +95,7 @@ async def test_cipher_client():
     return True
 
 
+@pytest.mark.integration
 async def test_cipher_service():
     """Test Cipher service functionality."""
     print("\n🔧 Testing Cipher Service...")
@@ -177,6 +180,7 @@ async def test_cipher_service():
     return True
 
 
+@pytest.mark.integration
 async def test_configuration():
     """Test configuration settings."""
     print("\n🔧 Testing Configuration...")

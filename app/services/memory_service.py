@@ -14,7 +14,8 @@ from app.core.logging import get_logger
 from app.core.metrics import record_memory_operation, get_metrics_collector
 from app.models.memory import (
     MemoryStore, MemoryStoreCreate, MemorySearch, MemorySearchResponse,
-    MemorySearchResult, MemoryStats, MemoryRoute, MemoryRouteCreate
+    MemorySearchResult, MemoryStats, MemoryRoute, MemoryRouteCreate,
+    MemoryItem, MemoryMetadata
 )
 
 # Setup logger
@@ -125,15 +126,44 @@ class MemoryService:
             # Convert to search results
             results = []
             for memory in paginated_memories:
-                result = MemorySearchResult(
-                    memory_id=memory.id,
-                    content=memory.content,
-                    source=memory.source,
-                    memory_type=memory.memory_type,
-                    importance=memory.importance,
-                    relevance_score=self._calculate_relevance(memory, search_query.query),
+                # Create MemoryItem from MemoryStore
+                # Map memory_type from MemoryStore to MemoryItem
+                memory_type_mapping = {
+                    'conversation': 'context',
+                    'knowledge': 'knowledge',
+                    'experience': 'experience',
+                    'fact': 'fact',
+                    'procedure': 'procedure'
+                }
+                mapped_memory_type = memory_type_mapping.get(memory.memory_type, 'knowledge')
+                
+                memory_item = MemoryItem(
+                    id=memory.id,
+                    agent_id=memory.source.agent_id,
+                    content=memory.content.text,
+                    memory_type=mapped_memory_type,
+                    priority=min(4, max(1, memory.importance // 2)),  # Convert 1-10 importance to 1-4 priority
+                    expires_at=memory.expiration,
                     created_at=memory.created_at,
-                    metadata=memory.metadata
+                    updated_at=memory.updated_at
+                )
+                
+                # Create MemoryMetadata
+                memory_metadata = MemoryMetadata(
+                    id=str(uuid4()),
+                    memory_id=str(memory.id),
+                    tags=[],  # AgentSource doesn't have tags, use empty list
+                    source=memory.source.type,  # Use 'type' instead of 'source_type'
+                    confidence=1.0,
+                    created_at=memory.created_at,
+                    updated_at=memory.updated_at
+                )
+                
+                result = MemorySearchResult(
+                    memory=memory_item,
+                    metadata=memory_metadata,
+                    relevance_score=self._calculate_relevance(memory, search_query.query),
+                    matched_fields=["content", "memory_type"]
                 )
                 results.append(result)
             
@@ -206,15 +236,16 @@ class MemoryService:
             # Calculate current statistics
             self._calculate_current_stats()
             
+            # Convert average importance (1-10) to average priority (1-4)
+            avg_importance = self._calculate_average_importance()
+            avg_priority = min(4.0, max(1.0, avg_importance / 2.5))  # Convert 1-10 to 1-4
+            
             stats = MemoryStats(
                 total_memories=self._stats["total_memories"],
                 memories_by_type=self._stats["memories_by_type"],
                 memories_by_agent=self._stats["memories_by_agent"],
-                average_importance=self._calculate_average_importance(),
-                total_routes=self._stats["total_routes"],
-                routes_by_status=self._stats["routes_by_status"],
-                storage_size_bytes=self._stats["storage_size_bytes"],
-                last_updated=self._stats["last_updated"]
+                average_priority=avg_priority,
+                total_size_bytes=self._stats["storage_size_bytes"]
             )
             
             return stats

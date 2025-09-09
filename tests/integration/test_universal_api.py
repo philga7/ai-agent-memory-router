@@ -8,6 +8,7 @@ a full database connection.
 
 import asyncio
 import json
+import pytest
 from datetime import datetime
 from typing import Dict, Any
 
@@ -37,6 +38,7 @@ except Exception as e:
     exit(1)
 
 
+@pytest.mark.integration
 def test_universal_models():
     """Test Universal API models."""
     print("\n🧪 Testing Universal Models...")
@@ -105,6 +107,7 @@ def test_universal_models():
         print(f"❌ UniversalProjectCreate model failed: {e}")
 
 
+@pytest.mark.integration
 def test_auth_system():
     """Test authentication system."""
     print("\n🔐 Testing Authentication System...")
@@ -140,6 +143,7 @@ def test_auth_system():
         print(f"❌ Authentication system test failed: {e}")
 
 
+@pytest.mark.integration
 def test_rate_limiting():
     """Test rate limiting system."""
     print("\n⏱️ Testing Rate Limiting System...")
@@ -191,6 +195,7 @@ def test_rate_limiting():
         print(f"❌ Rate limiting system test failed: {e}")
 
 
+@pytest.mark.integration
 def test_model_validation():
     """Test model validation and edge cases."""
     print("\n🔍 Testing Model Validation...")
@@ -238,6 +243,7 @@ def test_model_validation():
         print("✅ Invalid memory type correctly rejected")
 
 
+@pytest.mark.integration
 def test_json_serialization():
     """Test JSON serialization of models."""
     print("\n📄 Testing JSON Serialization...")
@@ -271,6 +277,7 @@ def test_json_serialization():
         print(f"❌ JSON serialization test failed: {e}")
 
 
+@pytest.mark.integration
 async def test_async_components():
     """Test async components."""
     print("\n🔄 Testing Async Components...")
